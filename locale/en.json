@@ -1,0 +1,6 @@
+{
+  "meta": {
+    "title": "Chinese serif fonts",
+    "description": "Adds a Chinese serif font switch under Settings → General with coarse per-region toggles: the sidebar, conversation and composer areas are detected from the live slot registry, and areas contributed by other plugins are labelled with their source. When on, Chinese text uses a serif face (Noto Serif CJK SC or another installed CJK serif) while Latin text keeps the current fonts and code stays monospaced. Requires an installed CJK serif font."
+  }
+}
