@@ -1,8 +1,8 @@
 {
   "name": "dsh-cjk-serif",
-  "version": "2.0.0",
+  "version": "4.0.3",
   "type": "module",
-  "description": "Contributes a Chinese serif font family that can be chosen as the text font, without overriding other font settings.",
+  "description": "Choose the Latin and the Chinese font for DeepSeek Harness text: Inter, Source Serif 4, Noto Serif SC and Noto Sans SC ship with the plugin.",
   "license": "MIT",
   "author": "HTY-Vague",
   "repository": {
@@ -17,7 +17,9 @@
     "dsh",
     "dsh-plugin",
     "font",
+    "typography",
     "serif",
+    "latin",
     "cjk",
     "chinese"
   ],
@@ -33,11 +35,14 @@
     "cordis.patch.yml",
     "locale/*.json",
     "icon.svg",
+    "fonts",
     "README.md",
     "CHANGELOG.md"
   ],
   "scripts": {
-    "test": "node tests/font-list.test.mjs"
+    "fonts": "node scripts/embed-fonts.mjs && node scripts/embed-cjk-fonts.mjs",
+    "fonts:check": "node scripts/embed-fonts.mjs --check && node scripts/embed-cjk-fonts.mjs --check",
+    "test": "node tests/font-list.test.mjs && node tests/font-route.test.mjs"
   },
   "engines": {
     "dsh": ">=0.2.2-rc.1"

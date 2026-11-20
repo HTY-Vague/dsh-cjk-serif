@@ -1,81 +1,92 @@
-# 中文衬线字体
+# 字体选择（dsh-cjk-serif）
 
-让 DSH 里的中文用宋体（衬线）。插件提供一个中文字体族 `Dsh CJK Serif`，把它加入「字体 → 文本字体」即可；西文和代码不受影响。
+给 DSH 的正文与界面分别选一款西文和一款中文字体。两个下拉在 **设置 → 通用设置**；西文内置 Inter 与 Source Serif 4，中文内置思源宋体与思源黑体，其余选项使用系统字体。
 
-## 为什么是"字体"而不是"强制覆盖"
+## 为什么是“写设置”而不是“强制覆盖”
 
-1.x 的做法是直接改写页面的字体 CSS 变量并加 `!important`。一旦有别的插件也想设置字体，这就变成层叠竞争：谁赢取决于 `!important`、选择器优先级和样式表顺序，而不是用户的意图；用户自己在设置里选的字体也会被遮住。
+1.x 直接改写页面字体 CSS 变量并加 `!important`，一旦有第二个插件也想管字体就变成层叠竞争：谁赢取决于优先级和样式表顺序，用户自己在设置里选的字体会被遮住。
 
-2.0 起只做两件事：声明 `Dsh CJK Serif` 这个字体族；把"是否使用"写进**宿主自己的「文本字体」设置**。字体设置只有一个值，谁最后设置就以谁为准，而且用户在设置页能直接看到并修改——不再有隐藏的覆盖。
+2.0 起只往**宿主自己的「文本字体」设置**里写：字体只有一个值，谁最后设置以谁为准，而且用户在设置页能直接看到、直接改。4.0 沿用这条规则——两个下拉只是把这个值编辑得更顺手，没有任何覆盖。
 
 ## 功能
 
-- **开关**：设置 → 通用设置 →「中文衬线字体」，把 `Dsh CJK Serif` 放到文本字体列表最前面；关掉只移除这一项，其它字体原样保留
-- **也可以手动设置**：设置 → 通用设置 → 字体 → 文本字体，直接输入 `Dsh CJK Serif`
-- **同一个值**：开关状态就是"文本字体列表里有没有这个字体"，两边互相同步
-- **只影响文本字体**：代码、终端字体不变
-- **跟随宿主设置持久化**：换会话、换设备一致
+- **西文字体**：跟随默认 / Inter / Source Serif 4 / Times New Roman / Consolas / Cascadia Code
+- **中文字体**：跟随默认 / 思源宋体 / 思源黑体 / 楷体 / 仿宋
+- **内置字体不需要系统安装**：思源宋体、思源黑体随插件分发，选中即可用；楷体、仿宋用系统字体（Windows 自带）
+- **立即生效**：切换写回宿主设置，页面随即重绘；状态由宿主设置派生，刷新、换会话都保持
+- **不动代码字体**：代码、终端仍用宿主的等宽字体栈（Consolas、Cascadia Code 选项只作用于正文，不接管代码）
 
-## 解决什么问题
+## 中西文怎么分开
 
-主题给正文指定的字体通常只覆盖西文字形。中文字符缺字时会按字体栈回退到 `Noto Sans SC`、`Source Han Sans SC` 这类无衬线字体，于是「主题已经切到衬线」和「中文仍是黑体」可以同时成立——西文字体大多不含汉字，不能指望它们渲染中文。
+- 内置的西文字体只声明拉丁区块（`unicode-range`），不会碰中文
+- 内置的中文字体按 unicode-range 切成 101 个分片，汉字命中分片、拉丁字符落到西文字体
+- 楷体/仿宋声明成只覆盖 CJK 区块的 `@font-face`，`local()` 指向系统里那款字体
+- 所以中文选项抢不走拉丁字母，西文字体也不会把汉字画成缺字方块；列表里西文在前、中文在后
 
-`Dsh CJK Serif` 只覆盖 CJK 字符，会被排到字体列表最前面：中文由系统里已安装的宋体渲染，拉丁字母、数字、符号不会命中它，继续使用后面的字体。
+## 内置字体与许可
+
+| 字体 | 用途 | 授权 | 分发方式 |
+| --- | --- | --- | --- |
+| Inter（latin 可变字重，正体 + 斜体） | 西文无衬线 | SIL OFL 1.1 | base64 内嵌在 `client.js` |
+| Source Serif 4（latin 可变字重，正体 + 斜体） | 西文衬线 | SIL OFL 1.1 | base64 内嵌在 `client.js` |
+| Noto Serif SC（101 个 unicode-range 分片） | 中文宋体 | SIL OFL 1.1 | `fonts/cjk/`，由宿主路由按需提供 |
+| Noto Sans SC（101 个 unicode-range 分片） | 中文黑体 | SIL OFL 1.1 | `fonts/cjk/`，由宿主路由按需提供 |
+
+西文字面小（约 200KB），直接内嵌进 `client.js`；中文分片合计约 10MB，走插件自己的只读路由 `/dsh-cjk-serif/fonts/<文件>`，浏览器只下载页面用到的分片，并缓存一年。许可文本随字体一起放在 `fonts/LICENSE-*.txt` 与 `fonts/cjk/LICENSE-*.txt`。
 
 ## 安装
-
-**方式一：插件市场 / 插件管理器**
-
-在市场里搜索 `dsh-cjk-serif` 安装；也可以从本仓库目录安装。
-
-**方式二：命令行**
 
 ```sh
 dsh plugin --profile desktop add github:HTY-Vague/dsh-cjk-serif
 ```
 
-把 `desktop` 换成你实际使用的 profile 名（例如 `web`）。首次安装后刷新一次页面。
+也可以在插件管理器里从本仓库目录安装。**4.x 首次安装或从 3.x 升级后需要重启一次 DSH**（宿主路由在插件激活时注册），之后刷新页面即可。
 
 ## 使用
 
-1. 打开 设置 → 通用设置 →「中文衬线字体」。
-2. 开关打开：字体族被加到「文本字体」最前面；开关关闭：只把它移除。
+1. 打开 设置 → 通用设置，找到「西文字体」和「中文字体」两行（在主题字体行下面）。
+2. 两个下拉各选一项；「跟随默认」表示这一侧不干预，交还给宿主自己的字体栈。
+3. 想精确控制时，宿主的「字体 → 文本字体」输入框里能看到同样的值，也可以直接改。
 
-关闭开关只会从字体列表里去掉 `Dsh CJK Serif`，你原有的字体设置保持不动。停用或移除插件时，字体列表里可能留下这一项；浏览器会跳过不存在的字体族，回退到后面的字体，不影响使用。
+## 开发
 
-## 字体来源
+```sh
+node scripts/embed-fonts.mjs      # 西文字面 → client.js 的 [font binaries]
+node scripts/embed-cjk-fonts.mjs  # 中文字面 → fonts/cjk/ 与 client.js 的 [cjk font css]
+node tests/font-list.test.mjs     # 字体目录、列表合成、样式与 bundle 规则
+node tests/font-route.test.mjs     # 宿主字体路由（分片、304、HEAD、404、越权、405）
+```
 
-按以下顺序取系统里第一个可用的字体：
-
-`Noto Serif CJK SC` → `Noto Serif CJK TC` → `Noto Serif CJK JP` → `Source Han Serif SC` → `Source Han Serif TC` → `Source Han Serif JP` → `Noto Serif SC` → `Noto Serif TC` → `Songti SC` → `STSong` → `SimSun` → `NSimSun`
-
-常见环境：Linux 装 `fonts-noto-cjk` 即有 Noto Serif CJK SC；macOS 自带 Songti SC；Windows 自带 SimSun。一个都没有时，开关不会报错，但中文外观不会变化。
-
-## 实现说明
-
-- 插件只注入一个 `<style>`：`@font-face`（`unicode-range` 限定 CJK）和设置行样式；**没有任何 `!important`**，不读写页面上的字体变量
-- 开关通过主题服务的 `setFontFamily('text', …)` 修改宿主设置，和「文本字体」输入框是同一个值
-- 开关状态由 `theme/change` 事件派生，插件不另存状态、不写 `localStorage`
-- 只改"文本"角色，不碰代码与终端字体
-- 不改包外文件，也不碰系统 fontconfig；关闭开关即恢复
+两个脚本都支持 `--check`（`npm run fonts:check`）用于校验 `client.js` 是否与 `fonts/` 同步；结果需要提交。字体取自 npmmirror 上的 `@fontsource-variable/*`，下载缓存在 `.font-cache/`（已 gitignore）。
 
 ## 已知限制
 
-- DSH 目前没有字体下拉选择器：字体设置是逗号分隔的文本框，所以"选择"表现为手动输入，或由本插件的开关代填
 - 组件如果把 `font-family` 写死在自己的样式里，不受文本字体设置影响（与主题字体设置的限制一致）
-- 如果字体列表里 `Dsh CJK Serif` 之前已经有能显示中文的字体，中文会先用那个；开关总是把它放到最前面以避免这种情况
-- 如果另一个插件也往文本字体里加字体，最终结果由列表顺序决定——本插件只负责自己这一项，不会覆盖别人的值
-- 需要系统已安装中文衬线字体，否则开关打开后外观不变
+- 楷体/仿宋是系统字体：换到没有这些字体的机器上会回退到默认中文字体
+- 「文本字体」只有一个值：如果另一个插件也写它，以最后一次写入为准，本插件不会覆盖别人的值
+- 停用或移除插件后，宿主「文本字体」里可能留下本插件写过的字体族；浏览器会跳过不存在的族并回退到后面的字体，到「字体 → 文本字体」里清掉即可
 
 ## 兼容性
 
-- 需要 DSH `>=0.2.2-rc.1`（见 `package.json` 的 `engines.dsh`）
-- 若主题服务没有 `setFontFamily`（更老的 DSH），开关不会显示；仍可在「文本字体」里手动输入 `Dsh CJK Serif`
-- 客户端只依赖 React 与插槽、本地化、主题服务；不引入 `@deepseek-ai/dsh-client-ui-*` 等 Harness 客户端包
+- 需要 DSH `>=0.2.2-rc.1`（`package.json` 的 `engines.dsh`）
+- 宿主没有 web server 时字体路由不会注册，内置中文字体不可用（西文与系统字体不受影响）
+- 若主题服务没有 `setFontFamily`（更老的 DSH），两行不会出现；仍可在「文本字体」里手动输入家族名
+- 客户端只依赖 React 与插槽、本地化、主题服务，不引入 `@deepseek-ai/dsh-client-ui-*` 包
 
 ## 许可
 
-MIT
+代码以 MIT 授权，见 [LICENSE](LICENSE)。
+
+内置字体按 SIL Open Font License 1.1 分发，每个字体文件旁都附有许可全文与版权行：
+
+| 字体 | 版权 | 许可文件 |
+| --- | --- | --- |
+| Inter | The Inter Project Authors | `fonts/LICENSE-Inter.txt` |
+| Source Serif 4 | Google Inc. | `fonts/LICENSE-SourceSerif4.txt` |
+| Noto Serif SC | Google Inc. | `fonts/cjk/LICENSE-NotoSerifSC.txt` |
+| Noto Sans SC | Google Inc. | `fonts/cjk/LICENSE-NotoSansSC.txt` |
+
+字体文件取自 npmmirror 镜像上的 `@fontsource-variable/*` 发布包，未做任何修改；Noto 两款保持 Google Fonts 的 unicode-range 分片形式。系统字体选项（Times New Roman、Consolas、Cascadia Code、楷体、仿宋）不随插件分发，只按名称引用用户机器上已装字体。
 
 版本变更见 [CHANGELOG.md](CHANGELOG.md)。
 
@@ -83,16 +94,19 @@ MIT
 
 ## English
 
-Chinese text in DSH often falls back to a sans-serif face because the theme's font stacks are built from Latin fonts that contain no CJK glyphs. This plugin contributes one font family, `Dsh CJK Serif`: an `@font-face` that resolves to the first installed Chinese serif family and covers only the CJK ranges, so Latin text and code never hit it.
+Pick the Latin and the Chinese font for DSH text from two dropdowns in **Settings → General**. Inter and Source Serif 4 ship for Latin; Noto Serif SC and Noto Sans SC ship for Chinese; the remaining choices use installed system fonts.
 
-The plugin does **not** override any CSS. Its switch edits the Host's own text font list (Settings → General → Fonts → Text font), putting the family in front on enable and removing only that entry on disable. That keeps one source of truth: whatever the user or another plugin writes to the text-font setting is what the page uses, and the value is visible and editable in the settings UI.
+The plugin **does not override CSS**. Both dropdowns edit the Host's own text-font setting (`Settings → Fonts → Text font`), which stays the single source of truth and remains visible and editable.
 
-- **Where**: Settings → General → "Chinese serif text", right after the theme font rows.
-- **Manual alternative**: type `Dsh CJK Serif` into Fonts → Text font; it only takes effect before any CJK-capable family in the list.
-- **Scope**: the text role only; code and terminal fonts are untouched.
-- **Fonts**: Noto Serif CJK SC/TC/JP, Source Han Serif SC/TC/JP, Noto Serif SC/TC, Songti SC, STSong, SimSun, NSimSun — whichever is installed first.
-- **Limitations**: DSH has no font picker yet, so selecting means typing the family or using this switch; components that hard-code `font-family` are not covered.
+- **Latin**: Host default, Inter, Source Serif 4, Times New Roman, Consolas, Cascadia Code
+- **Chinese**: Host default, Noto Serif SC (bundled), Noto Sans SC (bundled), KaiTi, FangSong
+- **Split by script**: bundled Latin faces declare a Latin `unicode-range`; both bundled Chinese faces are sliced by unicode-range (101 slices each) and the system choices are CJK-only `@font-face` rules resolved through `local()`
+- **Scope**: the text role only; the monospace Latin choices do not take over code or terminal fonts
 
-Install with `dsh plugin --profile <name> add github:HTY-Vague/dsh-cjk-serif`, then reload the page once.
+Bundled Latin faces are small enough to inline as base64 in `client.js`; the Chinese slices (~10 MiB) ship in `fonts/cjk/` and are served read-only by the plugin's host route `/dsh-cjk-serif/fonts/<file>`, so the browser downloads only the slices it needs and caches them for a year. Rebuild with `node scripts/embed-fonts.mjs` and `node scripts/embed-cjk-fonts.mjs`; run the two test files for the guards.
+
+Restart DSH once after installing 4.x (the host route registers at activation), then reload the page.
+
+MIT for the code. The bundled fonts ship under the SIL Open Font License 1.1 with their copyright lines: Inter (The Inter Project Authors), Source Serif 4, Noto Serif SC and Noto Sans SC (Google Inc.). The license texts sit next to the files (`fonts/LICENSE-*.txt`, `fonts/cjk/LICENSE-*.txt`). System-font choices are referenced by name only and are not redistributed.
 
 MIT © HTY-Vague

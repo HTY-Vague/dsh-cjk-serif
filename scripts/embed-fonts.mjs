@@ -1,0 +1,172 @@
+/**
+ * Fetch the two bundled Latin faces and inline them into client.js.
+ *
+ * The plugin ships no build output other than client.js: client.js is the file
+ * the Host loads, and it must not depend on sibling assets (a bundle is one
+ * module). So the WOFF2 files live in fonts/ as sources, and this script writes
+ * their base64 into the `[font binaries]` block of client.js.
+ *
+ *   node scripts/embed-fonts.mjs          # fetch (cached) and rewrite client.js
+ *   node scripts/embed-fonts.mjs --check  # fail when client.js is out of date
+ *
+ * Fonts: Inter and Source Serif 4, both latin-wght-normal/italic subsets from
+ * @fontsource-variable (SIL Open Font License 1.1). Sources stay in fonts/ with
+ * their license texts; nothing else is downloaded at runtime.
+ */
+import { gunzipSync } from 'node:zlib'
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
+import { dirname, join } from 'node:path'
+import { fileURLToPath } from 'node:url'
+
+const root = dirname(dirname(fileURLToPath(import.meta.url)))
+const fontsDir = join(root, 'fonts')
+const cacheDir = join(root, '.font-cache')
+const clientPath = join(root, 'client.js')
+
+/** One entry per face: which file to pull out of which published package. */
+const SOURCES = [
+  {
+    family: 'Inter',
+    style: 'normal',
+    pkg: '@fontsource-variable/inter',
+    version: '5.3.0',
+    tarName: 'inter',
+    file: 'package/files/inter-latin-wght-normal.woff2',
+    out: 'inter-latin-normal.woff2',
+    license: 'package/LICENSE',
+  },
+  {
+    family: 'Inter',
+    style: 'italic',
+    pkg: '@fontsource-variable/inter',
+    version: '5.3.0',
+    tarName: 'inter',
+    file: 'package/files/inter-latin-wght-italic.woff2',
+    out: 'inter-latin-italic.woff2',
+  },
+  {
+    family: 'Source Serif 4',
+    style: 'normal',
+    pkg: '@fontsource-variable/source-serif-4',
+    version: '5.3.1',
+    tarName: 'source-serif-4',
+    file: 'package/files/source-serif-4-latin-wght-normal.woff2',
+    out: 'source-serif-4-latin-normal.woff2',
+    license: 'package/LICENSE',
+  },
+  {
+    family: 'Source Serif 4',
+    style: 'italic',
+    pkg: '@fontsource-variable/source-serif-4',
+    version: '5.3.1',
+    tarName: 'source-serif-4',
+    file: 'package/files/source-serif-4-latin-wght-italic.woff2',
+    out: 'source-serif-4-latin-italic.woff2',
+  },
+]
+
+const MARK_START = '// --- [font binaries] ---'
+const MARK_END = '// --- [/font binaries] ---'
+
+/**
+ * Read the entries of a tar archive held in memory.
+ * @param {Buffer} buffer - uncompressed tar bytes.
+ * @returns {Map<string, Buffer>} path to file contents.
+ */
+function readTar(buffer) {
+  const files = new Map()
+  let offset = 0
+  while (offset + 512 <= buffer.length) {
+    const header = buffer.subarray(offset, offset + 512)
+    if (header[0] === 0) break
+    const name = header.subarray(0, 100).toString('utf8').replace(/\0.*$/u, '')
+    const prefix = header.subarray(345, 500).toString('utf8').replace(/\0.*$/u, '')
+    const size = Number.parseInt(header.subarray(124, 136).toString('utf8').replace(/\0.*$/u, '').trim(), 8) || 0
+    const path = prefix === '' ? name : `${prefix}/${name}`
+    offset += 512
+    files.set(path, buffer.subarray(offset, offset + size))
+    offset += Math.ceil(size / 512) * 512
+  }
+  return files
+}
+
+/**
+ * Download one package tarball, reusing the cache directory.
+ * @param {{pkg: string, version: string, tarName: string}} source - package coordinates.
+ * @returns {Promise<Map<string, Buffer>>} archive contents.
+ */
+async function fetchPackage(source) {
+  mkdirSync(cacheDir, { recursive: true })
+  const cached = join(cacheDir, `${source.tarName}-${source.version}.tgz`)
+  if (!existsSync(cached)) {
+    const url = `https://registry.npmmirror.com/${source.pkg}/-/${source.tarName}-${source.version}.tgz`
+    const response = await fetch(url)
+    if (!response.ok) throw new Error(`${url} answered ${response.status}`)
+    writeFileSync(cached, Buffer.from(await response.arrayBuffer()))
+    console.log(`downloaded ${source.pkg}@${source.version}`)
+  }
+  return readTar(gunzipSync(readFileSync(cached)))
+}
+
+/**
+ * Base64 data URL for one WOFF2 file, written next to the sources as well.
+ * @param {Map<string, Buffer>} archive - package contents.
+ * @param {object} source - entry from SOURCES.
+ * @returns {string} `data:font/woff2;base64,…`.
+ */
+function dataUrlOf(archive, source) {
+  const bytes = archive.get(source.file)
+  if (bytes === undefined) throw new Error(`${source.file} is missing from ${source.pkg}`)
+  writeFileSync(join(fontsDir, source.out), bytes)
+  console.log(`  ${source.out} — ${bytes.length} bytes`)
+  return `data:font/woff2;base64,${bytes.toString('base64')}`
+}
+
+/** Build the replacement text for the binaries block. */
+function renderBlock(binaries) {
+  const body = JSON.stringify(binaries, null, 2)
+    .split('\n')
+    .map((line) => `    ${line}`)
+    .join('\n')
+    .trimStart()
+  return `${MARK_START}\n    // Generated by scripts/embed-fonts.mjs from fonts/ (OFL-1.1). Do not edit.\n    const FONT_BINARIES = ${body}\n    ${MARK_END}`
+}
+
+mkdirSync(fontsDir, { recursive: true })
+
+/** @type {Record<string, Record<string, string>>} */
+const binaries = {}
+const archives = new Map()
+for (const source of SOURCES) {
+  const key = `${source.pkg}@${source.version}`
+  if (!archives.has(key)) archives.set(key, await fetchPackage(source))
+  const archive = archives.get(key)
+  binaries[source.family] ??= {}
+  binaries[source.family][source.style] = dataUrlOf(archive, source)
+  if (source.license !== undefined) {
+    const license = archive.get(source.license)
+    if (license !== undefined) {
+      const name = source.family.replace(/\s+/gu, '') 
+      writeFileSync(join(fontsDir, `LICENSE-${name}.txt`), license)
+    }
+  }
+}
+
+const client = readFileSync(clientPath, 'utf8')
+const start = client.indexOf(MARK_START)
+const end = client.indexOf(MARK_END)
+if (start < 0 || end < start) throw new Error('font binaries markers not found in client.js')
+const updated = client.slice(0, start) + renderBlock(binaries) + client.slice(end + MARK_END.length)
+
+if (process.argv.includes('--check')) {
+  if (updated !== client) {
+    console.error('client.js is out of date; run: node scripts/embed-fonts.mjs')
+    process.exit(1)
+  }
+  console.log('client.js is up to date')
+} else if (updated !== client) {
+  writeFileSync(clientPath, updated)
+  console.log(`client.js updated (${updated.length} bytes)`)
+} else {
+  console.log('client.js already up to date')
+}

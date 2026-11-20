@@ -1,6 +1,6 @@
 {
   "meta": {
-    "title": "Chinese serif text",
-    "description": "Contributes a Chinese serif font family (Dsh CJK Serif) to Settings → Fonts → Text font. When the family is in the text font list, Chinese text uses a serif face while Latin text and code keep their fonts. The plugin does not override the theme: its switch writes the same text-font setting the font field edits, so other font choices keep working. Requires an installed CJK serif font."
+    "title": "Font choice (Latin / Chinese)",
+    "description": "Two dropdowns in Settings → General: the Latin font (Inter and Source Serif 4 bundled, plus Times New Roman, Consolas and Cascadia Code) and the Chinese font (Noto Serif SC and Noto Sans SC bundled, plus KaiTi and FangSong). Both choices compose the Host's own text-font setting, Latin first and Chinese after, while code and terminal fonts stay untouched. The plugin overrides no CSS, so it coexists with the theme and other font plugins. The bundled Chinese faces are sliced by unicode-range and served on demand by the plugin's own read-only route, so nothing has to be installed."
   }
 }
