@@ -1,38 +1,30 @@
 /**
- * Chinese serif for DeepSeek Harness.
+ * Chinese serif for DeepSeek Harness — one global switch.
  *
  * Chinese text usually ends up on a sans fallback because Western text fonts
  * rarely include CJK glyphs. This module declares a CJK-only font face that
- * resolves to the first installed Chinese serif family and puts it ahead of
- * whatever font stacks the running page uses: globally, and per detected UI
- * region.
+ * resolves to the first installed Chinese serif family and prepends it to the
+ * font-family custom properties the running page actually uses, so Chinese
+ * text picks up a serif face while Latin text and code keep the theme look.
  *
- * Instead of assuming a particular theme's variable names, it reads the font
- * related CSS custom properties from the live computed style of <body> and
- * prepends the CJK face to each value. Any theme that drives its fonts through
- * custom properties is covered, and switching the theme or its typeface just
- * triggers another read.
+ * The face is declared with a unicode-range covering CJK only. Font custom
+ * properties are read from the live computed style of the document, and a
+ * value is rewritten only when it is a plain font-family list, so font size,
+ * weight, line-height, and shorthand tokens are never touched.
  *
- * The face is declared with a unicode-range covering CJK only, so Latin text
- * keeps whatever appearance the page gives it, and properties whose names look
- * like code fonts are left untouched so code stays monospaced.
- *
- * Regions are discovered from the live slot registry (ctx.slots.snapshot())
- * and grouped into a few coarse areas, so panels added by other plugins show up
- * automatically. Rows for areas containing third-party widgets carry a small
- * provenance hint rendered in a sans face, per request.
+ * The switch is registered into `settings.general.item` and applies globally;
+ * the preference survives reloads in localStorage.
  */
 window.__ModuleLoader__.load({
   id: 'dsh-cjk-serif',
   factory(require) {
     const React = require('react')
-    const { Switch } = require('@deepseek-ai/dsh-client-ui-primitives')
 
     const NS = 'dsh-cjk-serif'
-    const STORAGE_KEY = 'dsh-cjk-serif:enabled'
-    const REGIONS_KEY = 'dsh-cjk-serif:regions'
+    const ENABLED_KEY = 'dsh-cjk-serif:enabled:v1'
+    const LEGACY_ENABLED_KEY = 'dsh-cjk-serif:enabled'
+    const LEGACY_REGIONS_KEY = 'dsh-cjk-serif:regions'
     const ATTRIBUTE = 'data-dsh-cjk-serif'
-    const REGION_ATTR = 'data-cjk-region-font'
     const STYLE_ID = 'dsh-cjk-serif'
 
     const FACE = '"Dsh CJK Serif"'
@@ -79,82 +71,78 @@ window.__ModuleLoader__.load({
       CRANGE +
       '}'
 
-    // Settings rows and the collapsible region list.
+    // Settings row chrome copied from the host's General-section rows, plus the
+    // host switch appearance. Classes stay under this plugin's prefix.
     const UI_STYLES = [
-      '.dsh-cjk-serif-block{display:flex;flex-direction:column}',
       '.dsh-cjk-serif-row{border-bottom:.5px solid var(--dsw-alias-border-l2);' +
         'justify-content:space-between;align-items:center;gap:24px;padding:16px 0;display:flex}',
       '.dsh-cjk-serif-title{font-size:14px;line-height:20px}',
       '.dsh-cjk-serif-desc{color:var(--dsw-alias-label-secondary);margin-top:4px;font-size:12px;line-height:18px}',
-      // Provenance hint: deliberately rendered in a sans face at 0.9em, per request.
-      '.dsh-cjk-serif-src{font-family:ui-sans-serif,system-ui,-apple-system,"Segoe UI",sans-serif!important;' +
-        'color:var(--dsw-alias-label-secondary);font-size:.9em;font-weight:400;margin-left:8px;white-space:nowrap}',
-      '.dsh-cjk-serif-regions{margin:0}',
-      '.dsh-cjk-serif-regions>summary{cursor:pointer;list-style:none;display:flex;align-items:center;gap:6px;' +
-        'padding:12px 0;font-size:13px;line-height:18px;color:var(--dsw-alias-label-secondary);user-select:none}',
-      '.dsh-cjk-serif-regions>summary::-webkit-details-marker{display:none}',
-      '.dsh-cjk-serif-chev{display:inline-block;transition:transform .15s ease}',
-      '.dsh-cjk-serif-regions[open] .dsh-cjk-serif-chev{transform:rotate(90deg)}',
-      '.dsh-cjk-serif-hint{color:var(--dsw-alias-label-secondary);font-size:12px;line-height:18px;padding:0 0 8px}',
-      '.dsh-cjk-serif-region .dsh-cjk-serif-title{font-size:13px;line-height:18px}',
-      '.dsh-cjk-serif-empty{color:var(--dsw-alias-label-secondary);font-size:12px;line-height:18px;padding:4px 0 16px}',
-      '.dsh-cjk-serif-block > .dsh-cjk-serif-row:last-child{border-bottom:none}',
+      '.dsh-cjk-serif-switch{box-sizing:border-box;position:relative;flex:0 0 auto;width:36px;height:20px;' +
+        'padding:2px;border:0;border-radius:999px;corner-shape:round;' +
+        'background:var(--dsw-alias-border-l3);cursor:pointer}',
+      '.dsh-cjk-serif-switch[aria-checked=true]{background:var(--dsw-alias-brand-primary)}',
+      '.dsh-cjk-serif-switch:disabled{cursor:default;opacity:.5}',
+      '.dsh-cjk-serif-switch:focus-visible{outline:var(--dsw-focus-ring-width) solid ' +
+        'var(--dsw-focus-ring-color, var(--dsw-alias-state-business-primary));outline-offset:2px}',
+      '.dsh-cjk-serif-thumb{display:block;width:16px;height:16px;border-radius:50%;corner-shape:round;' +
+        'background:var(--dsw-alias-label-primary-foreground);transition:transform .12s ease}',
+      '.dsh-cjk-serif-switch[aria-checked=false] .dsh-cjk-serif-thumb{background:var(--dsw-alias-switch-thumb)}',
+      '.dsh-cjk-serif-switch[aria-checked=true] .dsh-cjk-serif-thumb{transform:translate(16px)}',
     ].join('\n')
 
     const zh = {
-      title: '\u4e2d\u6587\u886c\u7ebf\u5b57\u4f53',
+      title: '中文衬线字体',
       description:
-        '\u5f00\u542f\u540e\u754c\u9762\u4e0e\u4f1a\u8bdd\u4e2d\u7684\u4e2d\u6587\u4f7f\u7528\u5b8b\u4f53' +
-        '\uff0c\u897f\u6587\u4fdd\u6301\u539f\u6709\u5b57\u4f53\uff0c\u4ee3\u7801\u5757\u4fdd\u6301\u7b49\u5bbd\u3002',
-      regionsTitle: '\u6309\u533a\u57df\u63a7\u5236',
-      regionsHint: '已按位置归并成几个区域，其他插件添加的组件会标注来源。',
-      regionsEmpty: '当前没有可识别的区域。',
-      from: '来自',
-      'region.sidebar': '左侧边栏',
-      'region.main': '主区域',
-      'region.rightbar': '右侧边栏',
-      'region.other': '其他面板',
+        '开启后界面与会话中的中文使用衬线字体，西文保持原有字体，代码保持等宽。全局生效。',
     }
     const en = {
       title: 'Chinese serif text',
       description:
-        'When on, Chinese text in the interface and conversation is rendered with a serif face. ' +
-        'Latin text keeps the page\u2019s font and code stays monospaced.',
-      regionsTitle: 'Control by region',
-      regionsHint: 'Grouped by location; widgets added by other plugins are labelled with their source.',
-      regionsEmpty: 'No regions detected right now.',
-      from: 'from',
-      'region.sidebar': 'Left sidebar',
-      'region.main': 'Main area',
-      'region.rightbar': 'Right sidebar',
-      'region.other': 'Other panels',
+        'When on, Chinese text in the interface and conversation uses a serif face. ' +
+        'Latin text keeps the page\u2019s font and code stays monospaced. Applies everywhere.',
     }
 
-    // Slots that always make sense as regions; their labels live in the locale
-    // dictionaries (objects here would end up rendered as React children).
-    const KNOWN = {
-      sidebar: true,
-      main: true,
-      rightbar: true,
-      'conversation.composer': true,
-    }
-    const LABEL_KEYS = {
-      main: 'region.main',
-      sidebar: 'region.sidebar',
-      rightbar: 'region.rightbar',
-      other: 'region.other',
-    }
-    const EXCLUDED = /^(root|settings\.|shell\.overlay$)/
-    const MICRO = /\.(icon|label|actions|action|badge|text|button|item|row|hint|meta)$/
+    // --- [font-variable filtering] pure helpers, also read by tests/variable-filter.test.mjs ---
+    // A bare family name: letters, digits, spaces, underscores, and hyphens,
+    // not starting with a digit (so `14px`, `400`, and `1.5rem` are rejected).
+    const BARE_FAMILY = /^-?[A-Za-z_][A-Za-z0-9 _-]*$/u
+    const QUOTED_FAMILY = /^(['"]).*\1$/u
+    // Font shorthand keywords and CSS-wide keywords that are not family names.
+    const RESERVED_WORD =
+      /^(?:normal|italic|oblique|small-caps|bold|bolder|lighter|inherit|initial|unset|revert|revert-layer|ultra-condensed|extra-condensed|condensed|semi-condensed|semi-expanded|expanded|extra-expanded|ultra-expanded)$/iu
+    // Anything that marks a size, weight, shorthand, function, or injection.
+    const NOT_FAMILY = /[\\;{}!]|var\(|calc\(|env\(|\//iu
 
-    // Custom properties we are willing to edit: font stacks, but not code.
+    /**
+     * Whether a custom-property value is a plain CSS font-family list.
+     * @param {string} value - computed value of a custom property.
+     * @returns {boolean} true only for comma-separated family names.
+     */
+    function isFontFamilyList(value) {
+      if (typeof value !== 'string' || value.length === 0 || value.length > 320) return false
+      if (NOT_FAMILY.test(value)) return false
+      for (const part of value.split(',')) {
+        const name = part.trim()
+        if (name === '') return false
+        if (QUOTED_FAMILY.test(name)) continue
+        if (!BARE_FAMILY.test(name)) return false
+        if (RESERVED_WORD.test(name)) return false
+      }
+      return true
+    }
+    // --- [/font-variable filtering] ---
+
+    // Custom properties we are willing to edit: font stacks, but never code.
     const VAR_NAME = /(font|serif|prose)/i
     const VAR_SKIP = /(code|mono|terminal)/i
-    const VAR_SKIP_EXACT = /^--dsh-font-family-(text|code|terminal)$/
 
     function readEnabled() {
       try {
-        return localStorage.getItem(STORAGE_KEY) !== '0'
+        const stored = localStorage.getItem(ENABLED_KEY)
+        if (stored !== null) return stored !== '0'
+        const legacy = localStorage.getItem(LEGACY_ENABLED_KEY)
+        return legacy === null ? true : legacy !== '0'
       } catch {
         return true
       }
@@ -162,26 +150,11 @@ window.__ModuleLoader__.load({
 
     function writeEnabled(on) {
       try {
-        localStorage.setItem(STORAGE_KEY, on ? '1' : '0')
+        localStorage.setItem(ENABLED_KEY, on ? '1' : '0')
+        localStorage.removeItem(LEGACY_ENABLED_KEY)
+        localStorage.removeItem(LEGACY_REGIONS_KEY)
       } catch {
         /* storage can be unavailable; the switch still works for this page */
-      }
-    }
-
-    function readRegions() {
-      try {
-        const raw = JSON.parse(localStorage.getItem(REGIONS_KEY) || '{}')
-        return raw && typeof raw === 'object' ? raw : {}
-      } catch {
-        return {}
-      }
-    }
-
-    function writeRegions(value) {
-      try {
-        localStorage.setItem(REGIONS_KEY, JSON.stringify(value))
-      } catch {
-        /* ignore */
       }
     }
 
@@ -195,12 +168,21 @@ window.__ModuleLoader__.load({
         styleEl.id = STYLE_ID
         document.head.appendChild(styleEl)
       }
+      // Own the node the way the client module system tags materialized styles,
+      // so entry eviction and this plugin's cleanup remove the same element.
+      try {
+        styleEl.dataset.plugin = NS
+      } catch {
+        /* a non-HTMLElement style node still works; only the marker is lost */
+      }
       return styleEl
     }
 
-    // Read the font stacks the page currently uses. Our own overrides are
-    // cleared first (the style element only holds the @font-face at that point),
-    // so this always returns the page's own values.
+    /**
+     * Read the font-family custom properties the page currently uses.
+     * Callers clear this plugin's own overrides first, so the values are the
+     * page's own; non-family values are filtered out by {@link isFontFamilyList}.
+     */
     function readFontVars() {
       const seen = new Set()
       const found = []
@@ -216,9 +198,9 @@ window.__ModuleLoader__.load({
           const name = computed.item(i)
           if (!name || name.slice(0, 2) !== '--') continue
           if (seen.has(name)) continue
-          if (!VAR_NAME.test(name) || VAR_SKIP.test(name) || VAR_SKIP_EXACT.test(name)) continue
+          if (!VAR_NAME.test(name) || VAR_SKIP.test(name)) continue
           const value = computed.getPropertyValue(name).trim()
-          if (!value || /var\(/i.test(value)) continue
+          if (!isFontFamilyList(value)) continue
           seen.add(name)
           found.push([name, value])
         }
@@ -226,24 +208,14 @@ window.__ModuleLoader__.load({
       return found
     }
 
-    function declarations(vars, withFace) {
-      let out = ''
-      for (const [name, value] of vars) {
-        out += name + ':' + (withFace ? FACE + ', ' + value : value) + ' !important;'
-      }
-      return out
-    }
-
     function buildCSS(vars) {
       const parts = [FONT_FACE]
       if (vars.length > 0) {
-        const body = declarations(vars, true)
-        const without = declarations(vars, false)
-        parts.push('html[' + ATTRIBUTE + '=on] body{' + body + '}')
-        // Region opt-in / opt-out, declared on the slot wrapper so it also wins
-        // over values inherited from an outer region.
-        parts.push('html[' + ATTRIBUTE + '=on] body [' + REGION_ATTR + '=serif]{' + body + '}')
-        parts.push('html[' + ATTRIBUTE + '=on] body [' + REGION_ATTR + '=sans]{' + without + '}')
+        let declarations = ''
+        for (const [name, value] of vars) {
+          declarations += name + ':' + FACE + ', ' + value + ' !important;'
+        }
+        parts.push('html[' + ATTRIBUTE + '=on] body{' + declarations + '}')
       }
       parts.push(UI_STYLES)
       return parts.join('\n')
@@ -251,10 +223,12 @@ window.__ModuleLoader__.load({
 
     function refreshFonts() {
       if (typeof document === 'undefined' || !document.body) return
+      if (!document.documentElement.hasAttribute(ATTRIBUTE)) return
       const style = ensureStyle()
+      // Drop this plugin's declarations before reading, so the values always
+      // come from the page and repeated refreshes cannot stack the face.
       style.textContent = FONT_FACE
-      const vars = readFontVars()
-      style.textContent = buildCSS(vars)
+      style.textContent = buildCSS(readFontVars())
     }
 
     function apply(on) {
@@ -268,296 +242,76 @@ window.__ModuleLoader__.load({
       }
     }
 
-    function flatten(tree) {
-      const nodes = []
-      const walk = (node, parent) => {
-        nodes.push({ ...node, parent })
-        for (const child of node.children || []) walk(child, node.name)
-      }
-      for (const node of tree || []) walk(node, undefined)
-      return nodes
-    }
+    let enabled = readEnabled()
+    const listeners = new Set()
 
-    function ownersOf(node) {
-      const names = new Set()
-      for (const occupant of node.occupants || []) {
-        if (!occupant.active) continue
-        names.add(occupant.registrant || node.declaredBy || '(built-in)')
-      }
-      if (names.size === 0 && node.declaredBy) names.add(node.declaredBy)
-      return [...names]
-    }
-
-    // Registrant strings look like a package name, or a longer description that
-    // ends with the package in parentheses, e.g. factory "lib/client.js" (@scope/pkg).
-    function packageOf(label) {
-      if (!label) return undefined
-      if (!label.includes(' ') && /^@?[\w.-]+(\/[\w.-]+)?$/.test(label)) return label
-      const paren = /\(([^()]+)\)\s*$/.exec(label)
-      if (paren) return paren[1].trim()
-      const quoted = /"([^"]+)"\s*$/.exec(label)
-      if (quoted) return quoted[1].trim()
-      return undefined
-    }
-
-    function isThirdParty(owner) {
-      if (typeof owner !== 'string' || owner.length === 0) return false
-      const pkg = packageOf(owner) || owner
-      return !pkg.startsWith('@deepseek-ai/') && pkg !== '(built-in)' && pkg !== 'built-in'
-    }
-
-    function rectOf(el) {
-      try {
-        const range = document.createRange()
-        range.selectNodeContents(el)
-        const rect = range.getBoundingClientRect()
-        if (rect.width > 0 || rect.height > 0) return rect
-      } catch {
-        /* fall through */
-      }
-      return undefined
-    }
-
-    function unionRect(els) {
-      let left = Infinity
-      let top = Infinity
-      let right = -Infinity
-      let bottom = -Infinity
-      for (const el of els) {
-        const rect = rectOf(el)
-        if (!rect) continue
-        left = Math.min(left, rect.left)
-        top = Math.min(top, rect.top)
-        right = Math.max(right, rect.right)
-        bottom = Math.max(bottom, rect.bottom)
-      }
-      if (left === Infinity) return undefined
-      return { left, top, right, bottom, width: right - left, height: bottom - top }
-    }
-
-    function categoryOf(name) {
-      if (/^sidebar(\.|$)/.test(name)) return 'sidebar'
-      if (/^rightbar(\.|$)/.test(name)) return 'rightbar'
-      if (name === 'main' || /^main\./.test(name) || /^conversation(\.|$)/.test(name)) return 'main'
-      return 'other'
-    }
-
-    const CATEGORY_ORDER = ['main', 'sidebar', 'rightbar', 'other']
-
-    function detectCategories(ctx) {
-      if (typeof document === 'undefined' || typeof ctx.slots?.snapshot !== 'function') return []
-      let tree
-      try {
-        tree = ctx.slots.snapshot()
-      } catch {
-        return []
-      }
-      const nodes = flatten(tree)
-      const byName = new Map()
-      for (const node of nodes) {
-        if (byName.has(node.name)) continue
-        if (!node.occupants || node.occupants.every((o) => !o.active)) continue
-        byName.set(node.name, node)
-      }
-
-      const groups = new Map()
-      for (const [name, node] of byName) {
-        if (name === 'root' || EXCLUDED.test(name)) continue
-        const wrappers = Array.from(document.querySelectorAll('[data-slot="' + name.replace(/"/g, '\\"') + '"]'))
-        if (wrappers.length === 0) continue
-        const rect = unionRect(wrappers)
-        if (!rect) continue
-        const known = Object.prototype.hasOwnProperty.call(KNOWN, name)
-        if (rect.width < 180 || rect.height < 90) continue
-        if (!known && (rect.width < 260 || rect.height < 150 || MICRO.test(name))) continue
-        const key = categoryOf(name)
-        const group = groups.get(key) || { key, slots: [], third: [] }
-        group.slots.push(name)
-        for (const owner of ownersOf(node)) {
-          if (!isThirdParty(owner)) continue
-          const pkg = packageOf(owner) || owner
-          if (!group.third.includes(pkg)) group.third.push(pkg)
-        }
-        groups.set(key, group)
-      }
-      return CATEGORY_ORDER.filter((k) => groups.has(k)).map((k) => groups.get(k))
-    }
-
-    function setCategoryAttributes(categories, off) {
-      for (const category of categories) {
-        const value = off[category.key] ? 'sans' : 'serif'
-        for (const name of category.slots) {
-          const wrappers = document.querySelectorAll('[data-slot="' + name.replace(/"/g, '\\"') + '"]')
-          for (const wrapper of wrappers) wrapper.setAttribute(REGION_ATTR, value)
-        }
+    function subscribe(listener) {
+      listeners.add(listener)
+      return () => {
+        listeners.delete(listener)
       }
     }
 
-    function clearAllRegionAttributes() {
-      for (const el of document.querySelectorAll('[' + REGION_ATTR + ']')) el.removeAttribute(REGION_ATTR)
+    function getEnabled() {
+      return enabled
     }
 
-    function CategorySwitch({ category, enabled, off, onToggle, t }) {
-      const checked = !off[category.key]
-      const label = t(LABEL_KEYS[category.key])
+    function setEnabled(next) {
+      const value = next === true
+      if (value === enabled) return
+      enabled = value
+      writeEnabled(value)
+      apply(value)
+      for (const listener of listeners) listener()
+    }
+
+    // Host switch appearance and semantics (button[role=switch] + thumb), kept
+    // local so this bundle never imports a Harness Client package.
+    function Switch({ checked, label, onChange }) {
       return React.createElement(
-        'div',
-        { className: 'dsh-cjk-serif-row dsh-cjk-serif-region' },
-        React.createElement(
-          'div',
-          { className: 'dsh-cjk-serif-title' },
-          label,
-          category.third.length > 0
-            ? React.createElement(
-                'span',
-                { className: 'dsh-cjk-serif-src', title: category.third.join(', ') },
-                t('from') + ' ' + category.third.join(', '),
-              )
-            : null,
-        ),
-        React.createElement(Switch, {
-          checked,
-          disabled: !enabled,
-          label,
-          onChange: (next) => onToggle(category.key, !next),
-        }),
+        'button',
+        {
+          type: 'button',
+          role: 'switch',
+          'aria-checked': checked,
+          'aria-label': label,
+          className: 'dsh-cjk-serif-switch',
+          onClick: () => onChange(!checked),
+        },
+        React.createElement('span', { className: 'dsh-cjk-serif-thumb', 'aria-hidden': 'true' }),
       )
     }
 
-    function SerifPanel({ ctx, t }) {
-      const [enabled, setEnabled] = React.useState(readEnabled)
-      const [off, setOff] = React.useState(readRegions)
-      const [categories, setCategories] = React.useState(() => detectCategories(ctx))
-      const stateRef = React.useRef({ enabled, off, categories })
-      stateRef.current = { enabled, off, categories }
-
-      React.useEffect(() => {
-        apply(enabled)
-        writeEnabled(enabled)
-        setCategoryAttributes(stateRef.current.categories, off)
-        return () => clearAllRegionAttributes()
-      }, [enabled])
-
-      React.useEffect(() => {
-        writeRegions(off)
-        setCategoryAttributes(stateRef.current.categories, off)
-      }, [off])
-
-      React.useEffect(() => {
-        let timer
-        let disposed = false
-        const refresh = () => {
-          if (disposed) return
-          const next = detectCategories(ctx)
-          setCategories((prev) => {
-            const same =
-              prev.length === next.length &&
-              prev.every(
-                (c, i) =>
-                  c.key === next[i].key &&
-                  c.slots.join() === next[i].slots.join() &&
-                  c.third.join() === next[i].third.join(),
-              )
-            return same ? prev : next
-          })
-          setCategoryAttributes(next, stateRef.current.off)
-        }
-        const schedule = () => {
-          clearTimeout(timer)
-          timer = setTimeout(refresh, 200)
-        }
-        if (typeof MutationObserver !== 'undefined' && document.body) {
-          const observer = new MutationObserver(schedule)
-          observer.observe(document.body, { childList: true, subtree: true })
-          window.addEventListener('resize', schedule)
-          schedule()
-          return () => {
-            disposed = true
-            clearTimeout(timer)
-            observer.disconnect()
-            window.removeEventListener('resize', schedule)
-          }
-        }
-        return undefined
-      }, [])
-
-      const toggleCategory = (key, nextOff) => {
-        const next = { ...off }
-        if (nextOff) next[key] = true
-        else delete next[key]
-        writeRegions(next)
-        setOff(next)
-        setCategoryAttributes(categories, next)
-      }
-
+    function SerifRow({ t }) {
+      const on = React.useSyncExternalStore(subscribe, getEnabled)
       return React.createElement(
         'div',
-        { className: 'dsh-cjk-serif-block' },
+        { className: 'dsh-cjk-serif-row' },
         React.createElement(
           'div',
-          { className: 'dsh-cjk-serif-row' },
-          React.createElement(
-            'div',
-            null,
-            React.createElement('div', { className: 'dsh-cjk-serif-title' }, t('title')),
-            React.createElement('div', { className: 'dsh-cjk-serif-desc' }, t('description')),
-          ),
-          React.createElement(Switch, {
-            checked: enabled,
-            label: t('title'),
-            onChange: (next) => {
-              setEnabled(next)
-              apply(next)
-            },
-          }),
+          null,
+          React.createElement('div', { className: 'dsh-cjk-serif-title' }, t('title')),
+          React.createElement('div', { className: 'dsh-cjk-serif-desc' }, t('description')),
         ),
-        React.createElement(
-          'details',
-          { className: 'dsh-cjk-serif-regions' },
-          React.createElement(
-            'summary',
-            null,
-            React.createElement('span', { className: 'dsh-cjk-serif-chev', 'aria-hidden': 'true' }, '\u203a'),
-            t('regionsTitle'),
-          ),
-          React.createElement('div', { className: 'dsh-cjk-serif-hint' }, t('regionsHint')),
-          categories.length === 0
-            ? React.createElement('div', { className: 'dsh-cjk-serif-empty' }, t('regionsEmpty'))
-            : categories.map((category) =>
-                React.createElement(CategorySwitch, {
-                  key: category.key,
-                  category,
-                  enabled,
-                  off,
-                  onToggle: toggleCategory,
-                  t,
-                }),
-              ),
-        ),
+        React.createElement(Switch, { checked: on, label: t('title'), onChange: setEnabled }),
       )
     }
 
     return {
       inject: ['slots', 'locale'],
       apply(ctx) {
-        ctx.effect(() => {
-          const off = ctx.locale.register(NS, { zh, en })
-          return () => {
-            if (typeof off === 'function') off()
-          }
-        }, 'dsh-cjk-serif: dictionaries')
+        ctx.effect(() => ctx.locale.register(NS, { zh, en }), 'dsh-cjk-serif: dictionaries')
 
+        // The override belongs to the plugin, not to the settings row: the row
+        // unmounts whenever Settings closes, while the font must stay applied.
         ctx.effect(() => {
-          apply(readEnabled())
-          const timers = [
-            setTimeout(refreshFonts, 300),
-            setTimeout(refreshFonts, 1200),
-            setTimeout(refreshFonts, 3000),
-          ]
+          apply(enabled)
           let scheduled
-          const schedule = () => {
+          const schedule = (records) => {
+            // This plugin's own root attribute does not change any font stack.
+            if (records && records.every((record) => record.attributeName === ATTRIBUTE)) return
             clearTimeout(scheduled)
-            scheduled = setTimeout(refreshFonts, 250)
+            scheduled = setTimeout(refreshFonts, 120)
           }
           const observer =
             typeof MutationObserver !== 'undefined' && document.body
@@ -568,20 +322,18 @@ window.__ModuleLoader__.load({
             observer.observe(document.documentElement, { attributes: true })
           }
           return () => {
-            for (const timer of timers) clearTimeout(timer)
             clearTimeout(scheduled)
             observer?.disconnect()
-            clearAllRegionAttributes()
             apply(false)
             styleEl?.remove()
             styleEl = null
           }
-        }, 'dsh-cjk-serif: styles')
+        }, 'dsh-cjk-serif: font override')
 
         ctx.slots.inject('settings.general.item', () =>
           ctx.slots.register(
-            { name: 'settings.general.item', id: 'dsh-cjk-serif', order: 11, locale: NS },
-            (props) => React.createElement(SerifPanel, { ctx, t: props.t }),
+            { name: 'settings.general.item', id: 'dsh-cjk-serif', order: 12, locale: NS },
+            SerifRow,
           ),
         )
       },
