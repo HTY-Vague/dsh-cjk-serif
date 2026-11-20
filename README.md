@@ -1,21 +1,26 @@
 # 中文衬线字体
 
-让 DSH 里的中文用宋体（衬线），西文保持主题原字体，代码保持等宽。开关在 **设置 → 通用设置**，默认开启，全局生效。
+让 DSH 里的中文用宋体（衬线）。插件提供一个中文字体族 `Dsh CJK Serif`，把它加入「字体 → 文本字体」即可；西文和代码不受影响。
 
-## 解决什么问题
+## 为什么是"字体"而不是"强制覆盖"
 
-主题给正文指定的衬线字体通常只覆盖西文字形。中文字符缺字时会按字体栈回退到 `Noto Sans SC`、`Source Han Sans SC` 这类无衬线字体，于是「主题已经切到衬线」和「中文仍是黑体」可以同时成立：问题出在中文字体回退上，与具体是哪个主题无关——西文字体大多不含汉字，不能指望它们来渲染中文。
+1.x 的做法是直接改写页面的字体 CSS 变量并加 `!important`。一旦有别的插件也想设置字体，这就变成层叠竞争：谁赢取决于 `!important`、选择器优先级和样式表顺序，而不是用户的意图；用户自己在设置里选的字体也会被遮住。
 
-本插件声明一个只覆盖 CJK 字符的字体族 `Dsh CJK Serif`，排在各主题的中文无衬线回退之前，让中文真正用上系统里已安装的宋体；西文字符不经过这个字体族，仍然使用主题自己的字体。
+2.0 起只做两件事：声明 `Dsh CJK Serif` 这个字体族；把"是否使用"写进**宿主自己的「文本字体」设置**。字体设置只有一个值，谁最后设置就以谁为准，而且用户在设置页能直接看到并修改——不再有隐藏的覆盖。
 
 ## 功能
 
-- **全局开关**：设置 → 通用设置 →「中文衬线字体」，位于主题的字体设置之后
-- **只做全局**：不按侧边栏、主区域等分区控制；一处开关，全界面生效
-- **记住选择**：开关状态存在 `localStorage`，刷新后保留
-- **即开即生效**：切换开关或切换主题后自动重新读取字体栈，无需刷新
+- **开关**：设置 → 通用设置 →「中文衬线字体」，把 `Dsh CJK Serif` 放到文本字体列表最前面；关掉只移除这一项，其它字体原样保留
+- **也可以手动设置**：设置 → 通用设置 → 字体 → 文本字体，直接输入 `Dsh CJK Serif`
+- **同一个值**：开关状态就是"文本字体列表里有没有这个字体"，两边互相同步
+- **只影响文本字体**：代码、终端字体不变
+- **跟随宿主设置持久化**：换会话、换设备一致
 
-关闭总开关后，界面与会话中的中文立即恢复为主题原本的字体。
+## 解决什么问题
+
+主题给正文指定的字体通常只覆盖西文字形。中文字符缺字时会按字体栈回退到 `Noto Sans SC`、`Source Han Sans SC` 这类无衬线字体，于是「主题已经切到衬线」和「中文仍是黑体」可以同时成立——西文字体大多不含汉字，不能指望它们渲染中文。
+
+`Dsh CJK Serif` 只覆盖 CJK 字符，会被排到字体列表最前面：中文由系统里已安装的宋体渲染，拉丁字母、数字、符号不会命中它，继续使用后面的字体。
 
 ## 安装
 
@@ -29,7 +34,14 @@
 dsh plugin --profile desktop add github:HTY-Vague/dsh-cjk-serif
 ```
 
-把 `desktop` 换成你实际使用的 profile 名（例如 `web`）。首次安装后刷新一次页面；之后切换开关即时生效。
+把 `desktop` 换成你实际使用的 profile 名（例如 `web`）。首次安装后刷新一次页面。
+
+## 使用
+
+1. 打开 设置 → 通用设置 →「中文衬线字体」。
+2. 开关打开：字体族被加到「文本字体」最前面；开关关闭：只把它移除。
+
+关闭开关只会从字体列表里去掉 `Dsh CJK Serif`，你原有的字体设置保持不动。停用或移除插件时，字体列表里可能留下这一项；浏览器会跳过不存在的字体族，回退到后面的字体，不影响使用。
 
 ## 字体来源
 
@@ -41,27 +53,25 @@ dsh plugin --profile desktop add github:HTY-Vague/dsh-cjk-serif
 
 ## 实现说明
 
-- 字体族通过 `@font-face` 声明，`unicode-range` 限定在 CJK 区块，所以拉丁字母、数字、符号不会命中它
-- 覆盖的变量在运行时从页面实际生效的自定义属性里读取：名字匹配 `font`、`serif`、`prose`，排除名字含 `code`、`mono`、`terminal` 的变量，并且**只改写值确实是字体族列表的变量**——字号（`--dsh-content-font-size` 等）、行高、字重、字体简写 token 不会被碰
-- 每次刷新前先撤掉本插件自己的覆盖声明再读取，因此重复刷新不会把字体族叠加多次，也不会把用户新选的字体读丢
-- 只声明 400 字重：`local()` 源只能取到字族的常规体，声明 700 会让粗体静默丢失；只留 400，让浏览器合成粗体
-- 不改包外文件，也不碰系统 fontconfig；停用插件即可完全恢复
+- 插件只注入一个 `<style>`：`@font-face`（`unicode-range` 限定 CJK）和设置行样式；**没有任何 `!important`**，不读写页面上的字体变量
+- 开关通过主题服务的 `setFontFamily('text', …)` 修改宿主设置，和「文本字体」输入框是同一个值
+- 开关状态由 `theme/change` 事件派生，插件不另存状态、不写 `localStorage`
+- 只改"文本"角色，不碰代码与终端字体
+- 不改包外文件，也不碰系统 fontconfig；关闭开关即恢复
 
 ## 已知限制
 
-- 只做全局开关，没有分区控制
-- 主题如果把 `font-family` 直接写在组件样式里（不经过自定义属性），这些组件不在覆盖范围内
+- DSH 目前没有字体下拉选择器：字体设置是逗号分隔的文本框，所以"选择"表现为手动输入，或由本插件的开关代填
+- 组件如果把 `font-family` 写死在自己的样式里，不受文本字体设置影响（与主题字体设置的限制一致）
+- 如果字体列表里 `Dsh CJK Serif` 之前已经有能显示中文的字体，中文会先用那个；开关总是把它放到最前面以避免这种情况
+- 如果另一个插件也往文本字体里加字体，最终结果由列表顺序决定——本插件只负责自己这一项，不会覆盖别人的值
 - 需要系统已安装中文衬线字体，否则开关打开后外观不变
-- 英文界面文案随宿主语言切换；目前提供中文和英文两套词典，其他语言回退英文
 
 ## 兼容性
 
 - 需要 DSH `>=0.2.2-rc.1`（见 `package.json` 的 `engines.dsh`）
-- 客户端只依赖 React 与插槽、本地化服务；不引入 `@deepseek-ai/dsh-client-ui-*` 等 Harness 客户端包
-
-## 卸载
-
-在插件管理器里停用或移除 `dsh-cjk-serif`，界面即恢复主题原始字体。
+- 若主题服务没有 `setFontFamily`（更老的 DSH），开关不会显示；仍可在「文本字体」里手动输入 `Dsh CJK Serif`
+- 客户端只依赖 React 与插槽、本地化、主题服务；不引入 `@deepseek-ai/dsh-client-ui-*` 等 Harness 客户端包
 
 ## 许可
 
@@ -73,13 +83,15 @@ MIT
 
 ## English
 
-Chinese text in DSH often falls back to a sans-serif face: the theme's serif stacks are built from Latin fonts that contain no CJK glyphs. This plugin declares a CJK-only `@font-face` (`Dsh CJK Serif`) that resolves to the first installed Chinese serif family and prepends it to the page's font-family custom properties, so Chinese text gets a serif face while Latin text and code keep the theme's fonts.
+Chinese text in DSH often falls back to a sans-serif face because the theme's font stacks are built from Latin fonts that contain no CJK glyphs. This plugin contributes one font family, `Dsh CJK Serif`: an `@font-face` that resolves to the first installed Chinese serif family and covers only the CJK ranges, so Latin text and code never hit it.
 
-- **Where**: Settings → General → "Chinese serif text", right below the theme font settings. On by default.
-- **Scope**: one global switch; there is no per-region control.
-- **Persistence**: the choice is stored in `localStorage` and survives reloads.
-- **Fonts**: Noto Serif CJK SC/TC/JP, Source Han Serif SC/TC/JP, Noto Serif SC/TC, Songti SC, STSong, SimSun, NSimSun — whichever is installed first. With none installed the switch still works but the look does not change.
-- **Limitations**: components that hard-code `font-family` in their own CSS (bypassing custom properties) are not covered; only the Chinese glyph range is affected, so Latin text and code stay as the theme renders them.
+The plugin does **not** override any CSS. Its switch edits the Host's own text font list (Settings → General → Fonts → Text font), putting the family in front on enable and removing only that entry on disable. That keeps one source of truth: whatever the user or another plugin writes to the text-font setting is what the page uses, and the value is visible and editable in the settings UI.
+
+- **Where**: Settings → General → "Chinese serif text", right after the theme font rows.
+- **Manual alternative**: type `Dsh CJK Serif` into Fonts → Text font; it only takes effect before any CJK-capable family in the list.
+- **Scope**: the text role only; code and terminal fonts are untouched.
+- **Fonts**: Noto Serif CJK SC/TC/JP, Source Han Serif SC/TC/JP, Noto Serif SC/TC, Songti SC, STSong, SimSun, NSimSun — whichever is installed first.
+- **Limitations**: DSH has no font picker yet, so selecting means typing the family or using this switch; components that hard-code `font-family` are not covered.
 
 Install with `dsh plugin --profile <name> add github:HTY-Vague/dsh-cjk-serif`, then reload the page once.
 

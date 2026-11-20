@@ -3,6 +3,41 @@
 Notable changes to this plugin, following [Keep a Changelog](https://keepachangelog.com/en/1.1.0/)
 and semantic versioning.
 
+## 2.0.0 — 2026-11-20
+
+### Breaking
+
+- The plugin no longer overrides CSS font variables. It contributes the
+  `Dsh CJK Serif` family and its switch writes the Host's own text-font setting
+  through `ctx.theme.setFontFamily('text', …)`; disabling removes only that one
+  entry and leaves the rest of the list alone.
+- The switch is off by default: installing the plugin changes nothing until the
+  family is added to the text font list. Users who relied on the implicit
+  override must turn it on once.
+- `localStorage` keys (`dsh-cjk-serif:enabled*`, `dsh-cjk-serif:regions`) are no
+  longer read or written.
+
+### Fixed
+
+- Font conflicts with other plugins and with the user's own font choice: the
+  Host font setting is the single source of truth, so there is no
+  `!important`/specificity/insertion-order race any more.
+- The family is declared whenever the plugin is active, including while the
+  switch is off, so it can be chosen manually under Settings → Fonts.
+
+### Removed
+
+- The CSS-variable rewriting, the computed-style scan, the `!important`
+  declarations, the `MutationObserver`, and the `data-dsh-cjk-serif` root
+  attribute.
+
+### Added
+
+- Font-list editing helpers with tests (`split` / `has` / `add` / `remove`) that
+  preserve other families verbatim, including quoted names containing commas.
+- `@deepseek-ai/dsh-client-ui-theme` in `dsh.client.inject`.
+- A bilingual README explaining the cooperative model.
+
 ## 1.4.0 — 2026-11-20
 
 ### Breaking

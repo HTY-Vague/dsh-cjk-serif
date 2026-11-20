@@ -1,19 +1,14 @@
 /**
- * Chinese serif for DeepSeek Harness — one global switch.
+ * Chinese serif for DeepSeek Harness.
  *
- * Chinese text usually ends up on a sans fallback because Western text fonts
- * rarely include CJK glyphs. This module declares a CJK-only font face that
- * resolves to the first installed Chinese serif family and prepends it to the
- * font-family custom properties the running page actually uses, so Chinese
- * text picks up a serif face while Latin text and code keep the theme look.
+ * The plugin contributes one font family, `Dsh CJK Serif`: an @font-face whose
+ * local() sources resolve to the first installed Chinese serif family and whose
+ * unicode-range covers CJK only, so Latin text and code never hit it.
  *
- * The face is declared with a unicode-range covering CJK only. Font custom
- * properties are read from the live computed style of the document, and a
- * value is rewritten only when it is a plain font-family list, so font size,
- * weight, line-height, and shorthand tokens are never touched.
- *
- * The switch is registered into `settings.general.item` and applies globally;
- * the preference survives reloads in localStorage.
+ * It declares no CSS override. The settings row edits the Host's own text font
+ * list — the same value as Settings → Fonts → Text font — by prepending or
+ * removing this family, so a serif face for Chinese is a font choice the user
+ * makes, and every other font setting (or font plugin) keeps owning the result.
  */
 window.__ModuleLoader__.load({
   id: 'dsh-cjk-serif',
@@ -21,13 +16,90 @@ window.__ModuleLoader__.load({
     const React = require('react')
 
     const NS = 'dsh-cjk-serif'
-    const ENABLED_KEY = 'dsh-cjk-serif:enabled:v1'
-    const LEGACY_ENABLED_KEY = 'dsh-cjk-serif:enabled'
-    const LEGACY_REGIONS_KEY = 'dsh-cjk-serif:regions'
-    const ATTRIBUTE = 'data-dsh-cjk-serif'
     const STYLE_ID = 'dsh-cjk-serif'
 
-    const FACE = '"Dsh CJK Serif"'
+    // --- [font list editing] pure helpers, also read by tests/font-list.test.mjs ---
+    /** The family this plugin contributes to the text font list. */
+    const FONT_FAMILY = 'Dsh CJK Serif'
+    /** Case-insensitive CSS family key used to find the family in a list. */
+    const FAMILY_KEY = FONT_FAMILY.toLowerCase()
+
+    /**
+     * Split a CSS font-family list on commas that are not inside quotes.
+     * @param {string} value - comma-separated family list.
+     * @returns {string[]} raw entries, trimmed, without empty items.
+     */
+    function splitFamilies(value) {
+      const entries = []
+      let current = ''
+      let quote = ''
+      for (const char of value) {
+        if (quote !== '') {
+          current += char
+          if (char === quote) quote = ''
+          continue
+        }
+        if (char === '"' || char === "'") {
+          quote = char
+          current += char
+          continue
+        }
+        if (char === ',') {
+          entries.push(current)
+          current = ''
+          continue
+        }
+        current += char
+      }
+      entries.push(current)
+      return entries.map((entry) => entry.trim()).filter((entry) => entry !== '')
+    }
+
+    /**
+     * Family name of one raw list entry, without its surrounding quotes.
+     * @param {string} entry - one trimmed list entry.
+     * @returns {string} unquoted family name.
+     */
+    function familyNameOf(entry) {
+      const first = entry[0]
+      if ((first === '"' || first === "'") && entry[entry.length - 1] === first) {
+        return entry.slice(1, -1).replace(/\\(["'])/gu, '$1')
+      }
+      return entry
+    }
+
+    /**
+     * Whether the text font list already contains this family.
+     * @param {string} value - CSS font-family list.
+     * @returns {boolean} true when present, compared case-insensitively.
+     */
+    function hasFamily(value) {
+      return splitFamilies(value).some((entry) => familyNameOf(entry).toLowerCase() === FAMILY_KEY)
+    }
+
+    /**
+     * Put this family first in the list, dropping any other spelling of it.
+     * The family's unicode-range is CJK-only, so Latin text still falls through
+     * to the families after it.
+     * @param {string} value - current CSS font-family list.
+     * @returns {string} list with this family first.
+     */
+    function addFamily(value) {
+      const rest = splitFamilies(value).filter((entry) => familyNameOf(entry).toLowerCase() !== FAMILY_KEY)
+      return ['"' + FONT_FAMILY + '"'].concat(rest).join(', ')
+    }
+
+    /**
+     * Remove this family from the list, leaving every other entry untouched.
+     * @param {string} value - current CSS font-family list.
+     * @returns {string} list without this family; `''` restores the built-in stack.
+     */
+    function removeFamily(value) {
+      return splitFamilies(value)
+        .filter((entry) => familyNameOf(entry).toLowerCase() !== FAMILY_KEY)
+        .join(', ')
+    }
+    // --- [/font list editing] ---
 
     const CRANGE = [
       'U+2E80-2EFF',
@@ -53,9 +125,9 @@ window.__ModuleLoader__.load({
     // face, so declaring a 700 face would silently drop bold. With only 400
     // declared the browser synthesizes bold instead.
     const FONT_FACE =
-      '@font-face{font-family:' +
-      FACE +
-      ';font-style:normal;font-weight:400;' +
+      '@font-face{font-family:"' +
+      FONT_FAMILY +
+      '";font-style:normal;font-weight:400;' +
       // Family and PostScript names only: Chrome resolves local() against
       // installed family/PostScript names, not "Family Regular" spellings.
       'src:local("Noto Serif CJK SC"),local("NotoSerifCJKsc-Regular"),' +
@@ -94,176 +166,15 @@ window.__ModuleLoader__.load({
     const zh = {
       title: '中文衬线字体',
       description:
-        '开启后界面与会话中的中文使用衬线字体，西文保持原有字体，代码保持等宽。需要系统已安装中文衬线字体；全局生效。',
+        '把「Dsh CJK Serif」加入文本字体，中文即用衬线；西文与代码保持原样。需要系统已安装中文衬线字体。' +
+        '该开关修改的就是「字体 → 文本字体」设置，随时可以在那里改回。',
     }
     const en = {
       title: 'Chinese serif text',
       description:
-        'When on, Chinese text in the interface and conversation uses a serif face. ' +
-        'Latin text keeps the page\u2019s font and code stays monospaced. ' +
-        'Requires an installed Chinese serif font. Applies everywhere.',
-    }
-
-    // --- [font-variable filtering] pure helpers, also read by tests/variable-filter.test.mjs ---
-    // Custom properties we are willing to edit: font stacks, but never code.
-    const VAR_NAME = /(font|serif|prose)/i
-    const VAR_SKIP = /(code|mono|terminal)/i
-
-    // A bare family name: letters, digits, spaces, underscores, and hyphens,
-    // not starting with a digit (so `14px`, `400`, and `1.5rem` are rejected).
-    const BARE_FAMILY = /^-?[A-Za-z_][A-Za-z0-9 _-]*$/u
-    const QUOTED_FAMILY = /^(['"]).*\1$/u
-    // Font shorthand keywords and CSS-wide keywords that are not family names.
-    const RESERVED_WORD =
-      /^(?:normal|italic|oblique|small-caps|bold|bolder|lighter|inherit|initial|unset|revert|revert-layer|ultra-condensed|extra-condensed|condensed|semi-condensed|semi-expanded|expanded|extra-expanded|ultra-expanded)$/iu
-    // Anything that marks a size, weight, shorthand, function, or injection.
-    const NOT_FAMILY = /[\\;{}!]|var\(|calc\(|env\(|\//iu
-
-    /**
-     * Whether a custom-property value is a plain CSS font-family list.
-     * @param {string} value - computed value of a custom property.
-     * @returns {boolean} true only for comma-separated family names.
-     */
-    function isFontFamilyList(value) {
-      if (typeof value !== 'string' || value.length === 0 || value.length > 320) return false
-      if (NOT_FAMILY.test(value)) return false
-      for (const part of value.split(',')) {
-        const name = part.trim()
-        if (name === '') return false
-        if (QUOTED_FAMILY.test(name)) continue
-        if (!BARE_FAMILY.test(name)) return false
-        if (RESERVED_WORD.test(name)) return false
-      }
-      return true
-    }
-    // --- [/font-variable filtering] ---
-
-    function readEnabled() {
-      try {
-        const stored = localStorage.getItem(ENABLED_KEY)
-        if (stored !== null) return stored !== '0'
-        const legacy = localStorage.getItem(LEGACY_ENABLED_KEY)
-        return legacy === null ? true : legacy !== '0'
-      } catch {
-        return true
-      }
-    }
-
-    function writeEnabled(on) {
-      try {
-        localStorage.setItem(ENABLED_KEY, on ? '1' : '0')
-        localStorage.removeItem(LEGACY_ENABLED_KEY)
-        localStorage.removeItem(LEGACY_REGIONS_KEY)
-      } catch {
-        /* storage can be unavailable; the switch still works for this page */
-      }
-    }
-
-    let styleEl = null
-
-    function ensureStyle() {
-      if (styleEl && styleEl.isConnected) return styleEl
-      styleEl = document.getElementById(STYLE_ID)
-      if (!styleEl) {
-        styleEl = document.createElement('style')
-        styleEl.id = STYLE_ID
-        document.head.appendChild(styleEl)
-      }
-      // Own the node the way the client module system tags materialized styles,
-      // so entry eviction and this plugin's cleanup remove the same element.
-      try {
-        styleEl.dataset.plugin = NS
-      } catch {
-        /* a non-HTMLElement style node still works; only the marker is lost */
-      }
-      return styleEl
-    }
-
-    /**
-     * Read the font-family custom properties the page currently uses.
-     * Callers clear this plugin's own overrides first, so the values are the
-     * page's own; non-family values are filtered out by {@link isFontFamilyList}.
-     */
-    function readFontVars() {
-      const seen = new Set()
-      const found = []
-      for (const el of [document.body, document.documentElement]) {
-        if (!el) continue
-        let computed
-        try {
-          computed = window.getComputedStyle(el)
-        } catch {
-          continue
-        }
-        for (let i = 0; i < computed.length; i += 1) {
-          const name = computed.item(i)
-          if (!name || name.slice(0, 2) !== '--') continue
-          if (seen.has(name)) continue
-          if (!VAR_NAME.test(name) || VAR_SKIP.test(name)) continue
-          const value = computed.getPropertyValue(name).trim()
-          if (!isFontFamilyList(value)) continue
-          seen.add(name)
-          found.push([name, value])
-        }
-      }
-      return found
-    }
-
-    function buildCSS(vars) {
-      const parts = [FONT_FACE]
-      if (vars.length > 0) {
-        let declarations = ''
-        for (const [name, value] of vars) {
-          declarations += name + ':' + FACE + ', ' + value + ' !important;'
-        }
-        parts.push('html[' + ATTRIBUTE + '=on] body{' + declarations + '}')
-      }
-      parts.push(UI_STYLES)
-      return parts.join('\n')
-    }
-
-    function refreshFonts() {
-      if (typeof document === 'undefined' || !document.body) return
-      if (!document.documentElement.hasAttribute(ATTRIBUTE)) return
-      const style = ensureStyle()
-      // Drop this plugin's declarations before reading, so the values always
-      // come from the page and repeated refreshes cannot stack the face.
-      style.textContent = FONT_FACE
-      style.textContent = buildCSS(readFontVars())
-    }
-
-    function apply(on) {
-      if (typeof document === 'undefined') return
-      const root = document.documentElement
-      if (on) {
-        root.setAttribute(ATTRIBUTE, 'on')
-        refreshFonts()
-      } else {
-        root.removeAttribute(ATTRIBUTE)
-      }
-    }
-
-    let enabled = readEnabled()
-    const listeners = new Set()
-
-    function subscribe(listener) {
-      listeners.add(listener)
-      return () => {
-        listeners.delete(listener)
-      }
-    }
-
-    function getEnabled() {
-      return enabled
-    }
-
-    function setEnabled(next) {
-      const value = next === true
-      if (value === enabled) return
-      enabled = value
-      writeEnabled(value)
-      apply(value)
-      for (const listener of listeners) listener()
+        'Adds "Dsh CJK Serif" to your text font list so Chinese text uses a serif face, ' +
+        'while Latin text and code stay as they are. Requires an installed Chinese serif font. ' +
+        'This writes the same setting as Fonts → Text font.',
     }
 
     // Host switch appearance and semantics (button[role=switch] + thumb), kept
@@ -283,58 +194,76 @@ window.__ModuleLoader__.load({
       )
     }
 
-    function SerifRow({ t }) {
-      const on = React.useSyncExternalStore(subscribe, getEnabled)
+    /**
+     * Follow the Host's text font list; it is the single source of truth, so a
+     * change made in Settings → Fonts is reflected here and the other way round.
+     * @param {object} ctx - client plugin context with the theme service.
+     * @returns {string} the normalized text font list.
+     */
+    function useTextFonts(ctx) {
+      const [fonts, setFonts] = React.useState(() => ctx.theme.getTheme().fontFamilies.text)
+      React.useEffect(() => {
+        setFonts(ctx.theme.getTheme().fontFamilies.text)
+        return ctx.on('theme/change', (snapshot) => {
+          setFonts(snapshot.fontFamilies.text)
+        })
+      }, [ctx])
+      return fonts
+    }
+
+    function SerifRow({ ctx, t }) {
+      const fonts = useTextFonts(ctx)
+      const on = hasFamily(fonts)
+      const label = t('title')
+      const toggle = (next) => {
+        try {
+          ctx.theme.setFontFamily('text', next ? addFamily(fonts) : removeFamily(fonts))
+        } catch (error) {
+          console.error('[dsh-cjk-serif] text font update failed', error)
+        }
+      }
       return React.createElement(
         'div',
         { className: 'dsh-cjk-serif-row' },
         React.createElement(
           'div',
           null,
-          React.createElement('div', { className: 'dsh-cjk-serif-title' }, t('title')),
+          React.createElement('div', { className: 'dsh-cjk-serif-title' }, label),
           React.createElement('div', { className: 'dsh-cjk-serif-desc' }, t('description')),
         ),
-        React.createElement(Switch, { checked: on, label: t('title'), onChange: setEnabled }),
+        React.createElement(Switch, { checked: on, label, onChange: toggle }),
       )
     }
 
     return {
-      inject: ['slots', 'locale'],
+      inject: ['slots', 'locale', 'theme'],
       apply(ctx) {
         ctx.effect(() => ctx.locale.register(NS, { zh, en }), 'dsh-cjk-serif: dictionaries')
 
-        // The override belongs to the plugin, not to the settings row: the row
-        // unmounts whenever Settings closes, while the font must stay applied.
+        // Only a font declaration: nothing is overridden, and the family stays
+        // available for the Host's own font settings while the plugin is active.
         ctx.effect(() => {
-          apply(enabled)
-          let scheduled
-          const schedule = (records) => {
-            // This plugin's own root attribute does not change any font stack.
-            if (records && records.every((record) => record.attributeName === ATTRIBUTE)) return
-            clearTimeout(scheduled)
-            scheduled = setTimeout(refreshFonts, 120)
-          }
-          const observer =
-            typeof MutationObserver !== 'undefined' && document.body
-              ? new MutationObserver(schedule)
-              : undefined
-          if (observer) {
-            observer.observe(document.body, { attributes: true })
-            observer.observe(document.documentElement, { attributes: true })
-          }
+          const style = document.createElement('style')
+          style.id = STYLE_ID
+          style.dataset.plugin = NS
+          style.textContent = FONT_FACE + '\n' + UI_STYLES
+          document.head.appendChild(style)
           return () => {
-            clearTimeout(scheduled)
-            observer?.disconnect()
-            apply(false)
-            styleEl?.remove()
-            styleEl = null
+            style.remove()
           }
-        }, 'dsh-cjk-serif: font override')
+        }, 'dsh-cjk-serif: font face')
 
+        // The row edits the Host's font-family setting through the theme
+        // service; without that face (an older DSH) the family is still usable
+        // by typing its name in Settings → Fonts → Text font.
+        if (typeof ctx.theme.setFontFamily !== 'function' || typeof ctx.theme.getTheme !== 'function') {
+          console.warn('[dsh-cjk-serif] the theme service has no font-family API; type the family name manually')
+          return
+        }
         ctx.slots.inject('settings.general.item', () =>
           ctx.slots.register(
             { name: 'settings.general.item', id: 'dsh-cjk-serif', order: 12, locale: NS },
-            SerifRow,
+            (props) => React.createElement(SerifRow, { ctx, t: props.t }),
           ),
         )
       },

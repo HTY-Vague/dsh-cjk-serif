@@ -1,6 +1,6 @@
 {
   "meta": {
     "title": "Chinese serif text",
-    "description": "Adds a Chinese serif font switch under Settings → General. When on, Chinese text in the interface and conversation uses a serif face (Noto Serif CJK SC or another installed CJK serif) while Latin text keeps the current fonts and code stays monospaced. The switch applies globally and is remembered across reloads. Requires an installed CJK serif font."
+    "description": "Contributes a Chinese serif font family (Dsh CJK Serif) to Settings → Fonts → Text font. When the family is in the text font list, Chinese text uses a serif face while Latin text and code keep their fonts. The plugin does not override the theme: its switch writes the same text-font setting the font field edits, so other font choices keep working. Requires an installed CJK serif font."
   }
 }
