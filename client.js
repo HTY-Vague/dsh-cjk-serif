@@ -83,17 +83,18 @@ window.__ModuleLoader__.load({
 
     /**
      * Latin choices. `families` are the CSS families written into the text font
-     * list. A family belongs to exactly one choice, so an existing list maps back
-     * to one option without ambiguity. Inter and Source Serif 4 are bundled;
-     * the rest are system faces every desktop platform ships.
+     * list; `preview` is the font-family that renders the option and the closed
+     * control in that face. A family belongs to exactly one choice, so an
+     * existing list maps back to one option without ambiguity. Inter and Source
+     * Serif 4 are bundled; the rest are system faces the desktop platforms ship.
      */
     const LATIN_CHOICES = [
       { id: 'default', families: [] },
-      { id: 'inter', families: ['Inter'] },
-      { id: 'source-serif-4', families: ['Source Serif 4'] },
-      { id: 'times-new-roman', families: ['Times New Roman'] },
-      { id: 'consolas', families: ['Consolas'] },
-      { id: 'cascadia-code', families: ['Cascadia Code', 'Cascadia Mono'] },
+      { id: 'inter', families: ['Inter'], preview: '"Inter"' },
+      { id: 'source-serif-4', families: ['Source Serif 4'], preview: '"Source Serif 4"' },
+      { id: 'times-new-roman', families: ['Times New Roman'], preview: '"Times New Roman"' },
+      { id: 'consolas', families: ['Consolas'], preview: '"Consolas"' },
+      { id: 'cascadia-code', families: ['Cascadia Code', 'Cascadia Mono'], preview: '"Cascadia Code", "Cascadia Mono"' },
     ]
 
     /**
@@ -101,13 +102,15 @@ window.__ModuleLoader__.load({
      * from the generated CJK sheet, sliced by unicode-range, so they work without
      * anything installed. The rest are system faces, declared here as CJK-only
      * @font-face rules whose local() sources resolve to the installed family.
+     * `preview` names the real family so the option renders in its own face, not
+     * in the synthetic CJK-only alias.
      */
     const CJK_CHOICES = [
       { id: 'default', families: [] },
-      { id: 'noto-serif-sc', families: ['Noto Serif SC Variable'] },
-      { id: 'noto-sans-sc', families: ['Noto Sans SC Variable'] },
-      { id: 'kaiti', families: ['Dsh CJK KaiTi'], local: ['KaiTi'] },
-      { id: 'fangsong', families: ['Dsh CJK FangSong'], local: ['FangSong'] },
+      { id: 'noto-serif-sc', families: ['Noto Serif SC Variable'], preview: '"Noto Serif SC Variable"' },
+      { id: 'noto-sans-sc', families: ['Noto Sans SC Variable'], preview: '"Noto Sans SC Variable"' },
+      { id: 'kaiti', families: ['Dsh CJK KaiTi'], local: ['KaiTi'], preview: '"KaiTi"' },
+      { id: 'fangsong', families: ['Dsh CJK FangSong'], local: ['FangSong'], preview: '"FangSong"' },
     ]
 
     /**
@@ -359,22 +362,31 @@ window.__ModuleLoader__.load({
       '.dsh-cjk-serif-copy{min-width:0}',
       '.dsh-cjk-serif-title{font-size:14px;line-height:20px}',
       '.dsh-cjk-serif-desc{color:var(--dsw-alias-label-secondary);margin-top:4px;font-size:12px;line-height:18px}',
-      // The closed control and, above all, the popup rows take explicit theme
-      // colours: a native select paints its popup on a platform surface, so an
-      // inherited (light) text colour would render white on white until hovered.
-      '.dsh-cjk-serif-select{box-sizing:border-box;flex:0 0 auto;min-width:200px;max-width:100%;' +
-        'padding:6px 10px;border:.5px solid var(--dsw-alias-border-l2);border-radius:8px;' +
+      // The picker is not a native select: every option must render in its own
+      // face, which <option> cannot be trusted to do. The closed control and the
+      // floating list take explicit theme colours for both palettes.
+      '.dsh-cjk-serif-field{position:relative;flex:0 0 auto;min-width:200px;max-width:100%}',
+      '.dsh-cjk-serif-trigger{box-sizing:border-box;display:flex;width:100%;align-items:center;' +
+        'justify-content:space-between;gap:8px;padding:6px 10px;' +
+        'border:.5px solid var(--dsw-alias-border-l2);border-radius:8px;' +
         'background:var(--dsw-alias-bg-layer-1, transparent);' +
-        'color:var(--dsw-alias-label-primary, inherit);' +
-        'font:inherit;line-height:20px;cursor:pointer;color-scheme:light}',
-      ':root[data-ds-dark-theme] .dsh-cjk-serif-select,' +
-        'body[data-ds-dark-theme] .dsh-cjk-serif-select{color-scheme:dark}',
-      '.dsh-cjk-serif-select option{background-color:var(--dsw-alias-bg-layer-2, Canvas);' +
-        'color:var(--dsw-alias-label-primary, CanvasText)}',
-      '.dsh-cjk-serif-select:focus-visible{outline:var(--dsw-focus-ring-width, 2px) solid ' +
+        'color:var(--dsw-alias-label-primary, inherit);font:inherit;line-height:20px;' +
+        'text-align:start;cursor:pointer}',
+      '.dsh-cjk-serif-trigger:focus-visible{outline:var(--dsw-focus-ring-width, 2px) solid ' +
         'var(--dsw-focus-ring-color, var(--dsw-alias-state-business-primary, #4176E6));outline-offset:2px}',
+      '.dsh-cjk-serif-value{overflow:hidden;white-space:nowrap;text-overflow:ellipsis}',
+      '.dsh-cjk-serif-chevron{flex:0 0 auto;width:7px;height:7px;margin-top:-3px;opacity:.65;' +
+        'border-right:1.5px solid currentColor;border-bottom:1.5px solid currentColor;transform:rotate(45deg)}',
+      '.dsh-cjk-serif-list{position:fixed;z-index:40;box-sizing:border-box;overflow:auto;padding:4px;' +
+        'background:var(--dsw-alias-bg-layer-2, Canvas);color:var(--dsw-alias-label-primary, CanvasText);' +
+        'border:.5px solid var(--dsw-alias-border-l2);border-radius:10px;box-shadow:0 10px 28px rgba(0,0,0,.26)}',
+      '.dsh-cjk-serif-option{display:flex;align-items:center;justify-content:space-between;gap:12px;' +
+        'padding:7px 10px;border-radius:6px;font-size:16px;line-height:24px;white-space:nowrap;cursor:pointer}',
+      '.dsh-cjk-serif-option.is-active{background:var(--dsw-alias-interactive-bg-hover, rgba(127,127,127,.18))}',
+      '.dsh-cjk-serif-option-label{overflow:hidden;text-overflow:ellipsis}',
+      '.dsh-cjk-serif-check{flex:0 0 auto;font-family:system-ui, sans-serif;font-size:12px;opacity:.75}',
       '@media (max-width:767px){.dsh-cjk-serif-row{flex-direction:column;align-items:stretch;gap:8px}' +
-        '.dsh-cjk-serif-select{width:100%}}',
+        '.dsh-cjk-serif-field{width:100%}}',
     ].join('\n')
 
     const zh = {
@@ -427,7 +439,195 @@ window.__ModuleLoader__.load({
       return fonts
     }
 
-    function FontRow({ label, description, value, choices, onChange, t }) {
+    /**
+     * Preview style for one choice: the option and the closed control render in
+     * the face itself, so the list reads as a type specimen. The default choice
+     * keeps the row's own font.
+     * @param {object} choice - one catalog entry.
+     * @returns {object|undefined} inline style for React.
+     */
+    function previewStyle(choice) {
+      return choice.preview === undefined ? undefined : { fontFamily: choice.preview }
+    }
+
+    /**
+     * Geometry for the floating list: below the trigger, or above it when the
+     * viewport has no room underneath. The list is fixed-positioned, so a
+     * scrolling settings panel cannot clip it.
+     * @param {HTMLElement} trigger - the closed control.
+     * @returns {{left: number, width: number, top?: number, bottom?: number, maxHeight: number}} style.
+     */
+    function listGeometry(trigger) {
+      const rect = trigger.getBoundingClientRect()
+      const below = window.innerHeight - rect.bottom
+      const above = rect.top
+      const width = Math.min(Math.max(rect.width, 200), window.innerWidth - 16)
+      const left = Math.max(8, Math.min(rect.left, window.innerWidth - width - 8))
+      if (below < 200 && above > below) {
+        return { left, width, bottom: window.innerHeight - rect.top + 4, maxHeight: Math.max(120, Math.min(320, above - 16)) }
+      }
+      return { left, width, top: rect.bottom + 4, maxHeight: Math.max(120, Math.min(320, below - 16)) }
+    }
+
+    /**
+     * Font chooser used by both rows: a button plus a list whose options render
+     * in their own face. Native <option> cannot be styled reliably per font, so
+     * the list is plugin-drawn while keeping listbox keyboard semantics.
+     */
+    function FontPicker({ id, label, value, choices, onChange, t }) {
+      const [open, setOpen] = React.useState(false)
+      const [active, setActive] = React.useState(0)
+      const [geometry, setGeometry] = React.useState(null)
+      const triggerRef = React.useRef(null)
+      const listRef = React.useRef(null)
+      const selectedIndex = choices.findIndex((choice) => choice.id === value)
+      const selected = choices[selectedIndex === -1 ? 0 : selectedIndex]
+
+      const close = () => {
+        setOpen(false)
+        setGeometry(null)
+      }
+
+      const openList = () => {
+        const trigger = triggerRef.current
+        if (trigger === null) return
+        setGeometry(listGeometry(trigger))
+        setActive(selectedIndex === -1 ? 0 : selectedIndex)
+        setOpen(true)
+      }
+
+      const choose = (next) => {
+        onChange(next)
+        close()
+        triggerRef.current?.focus()
+      }
+
+      React.useEffect(() => {
+        if (!open) return undefined
+        const onPointerDown = (event) => {
+          const target = event.target
+          if (listRef.current?.contains(target) === true || triggerRef.current?.contains(target) === true) return
+          setOpen(false)
+          setGeometry(null)
+        }
+        let frame = 0
+        const onViewportChange = () => {
+          if (frame !== 0) return
+          frame = window.requestAnimationFrame(() => {
+            frame = 0
+            const trigger = triggerRef.current
+            if (trigger !== null) setGeometry(listGeometry(trigger))
+          })
+        }
+        document.addEventListener('pointerdown', onPointerDown, true)
+        window.addEventListener('resize', onViewportChange)
+        window.addEventListener('scroll', onViewportChange, true)
+        return () => {
+          document.removeEventListener('pointerdown', onPointerDown, true)
+          window.removeEventListener('resize', onViewportChange)
+          window.removeEventListener('scroll', onViewportChange, true)
+          if (frame !== 0) window.cancelAnimationFrame(frame)
+        }
+      }, [open])
+
+      React.useEffect(() => {
+        if (!open) return
+        listRef.current?.querySelector('[data-active="true"]')?.scrollIntoView({ block: 'nearest' })
+      }, [open, active])
+
+      const onKeyDown = (event) => {
+        if (event.key === 'Escape') {
+          if (!open) return
+          event.preventDefault()
+          close()
+          return
+        }
+        if (!open) {
+          if (event.key === 'ArrowDown' || event.key === 'ArrowUp' || event.key === 'Enter' || event.key === ' ') {
+            event.preventDefault()
+            openList()
+          }
+          return
+        }
+        if (event.key === 'ArrowDown') {
+          event.preventDefault()
+          setActive((index) => Math.min(choices.length - 1, index + 1))
+        } else if (event.key === 'ArrowUp') {
+          event.preventDefault()
+          setActive((index) => Math.max(0, index - 1))
+        } else if (event.key === 'Home') {
+          event.preventDefault()
+          setActive(0)
+        } else if (event.key === 'End') {
+          event.preventDefault()
+          setActive(choices.length - 1)
+        } else if (event.key === 'Enter' || event.key === ' ') {
+          event.preventDefault()
+          choose(choices[active].id)
+        }
+      }
+
+      return React.createElement(
+        'div',
+        { className: 'dsh-cjk-serif-field' },
+        React.createElement(
+          'button',
+          {
+            ref: triggerRef,
+            type: 'button',
+            id,
+            className: 'dsh-cjk-serif-trigger',
+            'aria-haspopup': 'listbox',
+            'aria-expanded': open,
+            'aria-controls': `${id}-list`,
+            'aria-label': label,
+            onClick: () => (open ? close() : openList()),
+            onKeyDown,
+            style: previewStyle(selected),
+          },
+          React.createElement('span', { className: 'dsh-cjk-serif-value' }, t('font.' + selected.id)),
+          React.createElement('span', { className: 'dsh-cjk-serif-chevron', 'aria-hidden': 'true' }),
+        ),
+        open && geometry !== null
+          ? React.createElement(
+              'div',
+              {
+                ref: listRef,
+                id: `${id}-list`,
+                role: 'listbox',
+                'aria-label': label,
+                className: 'dsh-cjk-serif-list',
+                style: geometry,
+              },
+              choices.map((choice, index) =>
+                React.createElement(
+                  'div',
+                  {
+                    key: choice.id,
+                    id: `${id}-option-${choice.id}`,
+                    role: 'option',
+                    'aria-selected': choice.id === value,
+                    'data-active': index === active ? 'true' : 'false',
+                    className:
+                      'dsh-cjk-serif-option' +
+                      (index === active ? ' is-active' : '') +
+                      (choice.id === value ? ' is-selected' : ''),
+                    style: previewStyle(choice),
+                    onPointerEnter: () => setActive(index),
+                    onClick: () => choose(choice.id),
+                  },
+                  React.createElement('span', { className: 'dsh-cjk-serif-option-label' }, t('font.' + choice.id)),
+                  choice.id === value
+                    ? React.createElement('span', { className: 'dsh-cjk-serif-check', 'aria-hidden': 'true' }, '✓')
+                    : null,
+                ),
+              ),
+            )
+          : null,
+      )
+    }
+
+    function FontRow({ id, label, description, value, choices, onChange, t }) {
       return React.createElement(
         'div',
         { className: 'dsh-cjk-serif-row' },
@@ -437,18 +637,7 @@ window.__ModuleLoader__.load({
           React.createElement('div', { className: 'dsh-cjk-serif-title' }, label),
           React.createElement('div', { className: 'dsh-cjk-serif-desc' }, description),
         ),
-        React.createElement(
-          'select',
-          {
-            className: 'dsh-cjk-serif-select',
-            value,
-            'aria-label': label,
-            onChange: (event) => onChange(event.target.value),
-          },
-          choices.map((choice) =>
-            React.createElement('option', { key: choice.id, value: choice.id }, t('font.' + choice.id)),
-          ),
-        ),
+        React.createElement(FontPicker, { id, label, value, choices, onChange, t }),
       )
     }
 
@@ -467,6 +656,7 @@ window.__ModuleLoader__.load({
         React.Fragment,
         null,
         React.createElement(FontRow, {
+          id: 'dsh-cjk-serif-latin',
           label: t('latin.title'),
           description: t('latin.description'),
           value: latin,
@@ -475,6 +665,7 @@ window.__ModuleLoader__.load({
           t,
         }),
         React.createElement(FontRow, {
+          id: 'dsh-cjk-serif-cjk',
           label: t('cjk.title'),
           description: t('cjk.description'),
           value: cjk,

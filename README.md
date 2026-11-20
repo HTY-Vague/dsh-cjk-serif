@@ -13,6 +13,7 @@
 - **西文字体**：跟随默认 / Inter / Source Serif 4 / Times New Roman / Consolas / Cascadia Code
 - **中文字体**：跟随默认 / 思源宋体 / 思源黑体 / 楷体 / 仿宋
 - **内置字体不需要系统安装**：思源宋体、思源黑体随插件分发，选中即可用；楷体、仿宋用系统字体（Windows 自带）
+- **选项即字体预览**：下拉里每一款字体都用它自身渲染，收起的控件也按当前字体显示，选之前就能看出差别
 - **立即生效**：切换写回宿主设置，页面随即重绘；状态由宿主设置派生，刷新、换会话都保持
 - **不动代码字体**：代码、终端仍用宿主的等宽字体栈（Consolas、Cascadia Code 选项只作用于正文，不接管代码）
 
@@ -102,6 +103,7 @@ The plugin **does not override CSS**. Both dropdowns edit the Host's own text-fo
 - **Chinese**: Host default, Noto Serif SC (bundled), Noto Sans SC (bundled), KaiTi, FangSong
 - **Split by script**: bundled Latin faces declare a Latin `unicode-range`; both bundled Chinese faces are sliced by unicode-range (101 slices each) and the system choices are CJK-only `@font-face` rules resolved through `local()`
 - **Scope**: the text role only; the monospace Latin choices do not take over code or terminal fonts
+- **Preview**: every option renders in its own face (Latin and Chinese), and the closed control shows the current choice in that font
 
 Bundled Latin faces are small enough to inline as base64 in `client.js`; the Chinese slices (~10 MiB) ship in `fonts/cjk/` and are served read-only by the plugin's host route `/dsh-cjk-serif/fonts/<file>`, so the browser downloads only the slices it needs and caches them for a year. Rebuild with `node scripts/embed-fonts.mjs` and `node scripts/embed-cjk-fonts.mjs`; run the two test files for the guards.
 

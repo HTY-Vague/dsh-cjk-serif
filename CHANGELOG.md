@@ -3,6 +3,22 @@
 Notable changes to this plugin, following [Keep a Changelog](https://keepachangelog.com/en/1.1.0/)
 and semantic versioning.
 
+## 4.1.0 — 2026-11-20
+
+### Added
+
+- The font chooser previews every option in its own face, for both the Latin and
+  the Chinese list, and the closed control renders the current choice in that
+  font. The default choice keeps the row's own font.
+- Keyboard navigation for the list: `↑`/`↓`, `Home`/`End`, `Enter`/`Space`,
+  `Esc`, plus outside-click close and repositioning while the panel scrolls.
+
+### Changed
+
+- The native `<select>` is replaced by a plugin-drawn button and floating
+  listbox. A native select cannot be trusted to render each `<option>` in a
+  different font, which is what the preview needs.
+
 ## 4.0.3 — 2026-11-20
 
 ### Changed

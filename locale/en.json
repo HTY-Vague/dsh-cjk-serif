@@ -1,6 +1,6 @@
 {
   "meta": {
     "title": "Font choice (Latin / Chinese)",
-    "description": "Two dropdowns in Settings → General: the Latin font (Inter and Source Serif 4 bundled, plus Times New Roman, Consolas and Cascadia Code) and the Chinese font (Noto Serif SC and Noto Sans SC bundled, plus KaiTi and FangSong). Both choices compose the Host's own text-font setting, Latin first and Chinese after, while code and terminal fonts stay untouched. The plugin overrides no CSS, so it coexists with the theme and other font plugins. The bundled Chinese faces are sliced by unicode-range and served on demand by the plugin's own read-only route, so nothing has to be installed."
+    "description": "Two dropdowns in Settings → General: the Latin font (Inter and Source Serif 4 bundled, plus Times New Roman, Consolas and Cascadia Code) and the Chinese font (Noto Serif SC and Noto Sans SC bundled, plus KaiTi and FangSong). Every option previews in its own face, and the closed control shows the current choice in that font. Both choices compose the Host's own text-font setting, Latin first and Chinese after, while code and terminal fonts stay untouched. The plugin overrides no CSS, so it coexists with the theme and other font plugins. The bundled Chinese faces are sliced by unicode-range and served on demand by the plugin's own read-only route, so nothing has to be installed."
   }
 }

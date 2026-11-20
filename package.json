@@ -1,6 +1,6 @@
 {
   "name": "dsh-cjk-serif",
-  "version": "4.0.3",
+  "version": "4.1.0",
   "type": "module",
   "description": "Choose the Latin and the Chinese font for DeepSeek Harness text: Inter, Source Serif 4, Noto Serif SC and Noto Sans SC ship with the plugin.",
   "license": "MIT",

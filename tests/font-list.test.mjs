@@ -25,17 +25,18 @@ assert.match(client, /order: 12/u, 'the settings rows must not collide with the 
 assert.match(client, /ctx\.theme\.setFontFamily\('text'/u, 'the rows must edit the Host font setting')
 assert.match(client, /font-display:swap/u, 'bundled faces must not hide text while loading')
 
-// A native select paints its popup on a platform surface, so inheriting the
-// row's (light-on-dark) text colour made every option invisible until hovered.
-const selectRule = client.match(/\.dsh-cjk-serif-select\{[^}]*\}/u)
-assert.ok(selectRule !== null, 'select rule not found')
-assert.doesNotMatch(selectRule[0], /color:inherit/u, 'the select must not inherit its text colour')
-assert.match(
-  client,
-  /\.dsh-cjk-serif-select option\{[^}]*background-color:[^;}]*[^}]*color:/u,
-  'the popup rows need an explicit surface and text colour',
-)
-assert.match(client, /data-ds-dark-theme/u, 'the popup must follow the dark theme')
+// The chooser is plugin-drawn so every option can render in its own face: a
+// fixed floating listbox (not a native select) with listbox keyboard semantics.
+const listRule = client.match(/\.dsh-cjk-serif-list\{[^}]*\}/u)
+assert.ok(listRule !== null, 'picker list rule not found')
+assert.match(listRule[0], /position:fixed/u, 'the list must float above the settings panel')
+assert.match(listRule[0], /background:var\(--dsw-alias-bg-layer-2/u)
+assert.match(listRule[0], /color:var\(--dsw-alias-label-primary/u)
+assert.match(client, /role: 'listbox'/u)
+assert.match(client, /'aria-expanded'/u)
+assert.match(client, /ArrowDown/u, 'the list needs keyboard navigation')
+assert.match(client, /style: previewStyle\(choice\)/u, 'each option must render in its own face')
+assert.match(client, /style: previewStyle\(selected\)/u, 'the closed control must render in the selected face')
 
 // Bundled Latin faces stay inlined; bundled Chinese slices are served by the
 // host route, so their sheet references a URL placeholder instead of data.
@@ -105,6 +106,20 @@ assert.deepEqual(
 )
 assert.deepEqual(CJK_CHOICES[1].families, ['Noto Serif SC Variable'])
 assert.deepEqual(CJK_CHOICES[2].families, ['Noto Sans SC Variable'])
+
+// Every offered face previews in itself: the option and the closed control take
+// that font-family, while 跟随默认 keeps the row's own font.
+for (const choice of LATIN_CHOICES.concat(CJK_CHOICES)) {
+  if (choice.id === 'default') {
+    assert.equal(choice.preview, undefined, 'the default choice keeps the row font')
+    continue
+  }
+  assert.equal(typeof choice.preview, 'string', `${choice.id} needs a preview family`)
+  assert.match(choice.preview, /^"/u, `${choice.id} preview must be a quoted family list`)
+}
+assert.equal(CJK_CHOICES.find((choice) => choice.id === 'kaiti').preview, '"KaiTi"')
+assert.equal(CJK_CHOICES.find((choice) => choice.id === 'fangsong').preview, '"FangSong"')
+assert.equal(LATIN_CHOICES.find((choice) => choice.id === 'consolas').preview, '"Consolas"')
 
 // Option labels are the font names themselves: no "(bundled)", no "(serif)",
 // and no availability hint.
