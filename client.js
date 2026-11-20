@@ -94,13 +94,14 @@ window.__ModuleLoader__.load({
     const zh = {
       title: '中文衬线字体',
       description:
-        '开启后界面与会话中的中文使用衬线字体，西文保持原有字体，代码保持等宽。全局生效。',
+        '开启后界面与会话中的中文使用衬线字体，西文保持原有字体，代码保持等宽。需要系统已安装中文衬线字体；全局生效。',
     }
     const en = {
       title: 'Chinese serif text',
       description:
         'When on, Chinese text in the interface and conversation uses a serif face. ' +
-        'Latin text keeps the page\u2019s font and code stays monospaced. Applies everywhere.',
+        'Latin text keeps the page\u2019s font and code stays monospaced. ' +
+        'Requires an installed Chinese serif font. Applies everywhere.',
     }
 
     // --- [font-variable filtering] pure helpers, also read by tests/variable-filter.test.mjs ---

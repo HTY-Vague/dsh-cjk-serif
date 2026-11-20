@@ -67,6 +67,8 @@ dsh plugin --profile desktop add github:HTY-Vague/dsh-cjk-serif
 
 MIT
 
+版本变更见 [CHANGELOG.md](CHANGELOG.md)。
+
 ---
 
 ## English
