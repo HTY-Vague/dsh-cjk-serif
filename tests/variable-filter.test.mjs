@@ -1,6 +1,6 @@
 /**
  * Guards for the pure pieces of client.js that a browser would otherwise be
- * needed to exercise: the font-family value filter and the compliance rules the
+ * needed to exercise: the font-variable filter and the compliance rules the
  * bundle must keep (no Harness client package import, no per-region DOM writes).
  */
 import { readFileSync } from 'node:fs'
@@ -21,8 +21,9 @@ const start = source.indexOf('// --- [font-variable filtering]')
 const end = source.indexOf('// --- [/font-variable filtering]')
 assert.ok(start >= 0 && end > start, 'font-variable filtering block not found')
 
-const isFontFamilyList = new Function(`${source.slice(start, end)}\nreturn isFontFamilyList`)()
-assert.equal(typeof isFontFamilyList, 'function')
+const { isFontFamilyList, VAR_NAME, VAR_SKIP } = new Function(
+  `${source.slice(start, end)}\nreturn { isFontFamilyList, VAR_NAME, VAR_SKIP }`,
+)()
 
 const accepted = [
   // The host's built-in text stack.
@@ -63,8 +64,37 @@ const rejected = [
 for (const value of accepted) assert.equal(isFontFamilyList(value), true, `expected accept: ${value}`)
 for (const value of rejected) assert.equal(isFontFamilyList(value), false, `expected reject: ${value}`)
 
+// Actual host typography tokens: only font-family lists may be rewritten.
+// Sizes, weights, styles, line heights, deltas, and code stacks must stay put.
+const rewrites = (name, value) => VAR_NAME.test(name) && !VAR_SKIP.test(name) && isFontFamilyList(value)
+const hostTokens = [
+  ['--dsh-font-family-text-default', "-apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', 'Microsoft YaHei', sans-serif", true],
+  ['--dsw-font-family', "-apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', sans-serif", true],
+  ['--dsw-font-family-brand', "'Montserrat', -apple-system, BlinkMacSystemFont, sans-serif", true],
+  ['--dsh-font-family-text', '"Georgia", serif', true],
+  ['--dsh-content-font-size', '14px', false],
+  ['--dsh-content-font-size-secondary', '13px', false],
+  ['--dsh-code-font-size', '11px', false],
+  ['--dsh-terminal-font-size', '13px', false],
+  ['--dsh-content-font-delta', 'calc(14px - 14px)', false],
+  ['--dsw-font-s-14', '14px/22px -apple-system, BlinkMacSystemFont, sans-serif', false],
+  ['--dsw-font-s-14-font-size', '14px', false],
+  ['--dsw-font-s-14-line-height', '22px', false],
+  ['--dsw-font-s-14-font-weight', '400', false],
+  ['--dsw-font-s-14-font-style', 'normal', false],
+  ['--dsw-font-markdown-base-font-family', 'var(--dsw-font-family)', false],
+  ['--dsw-font-mono', 'ui-monospace, monospace', false],
+  ['--dsh-font-family-code-default', "'SF Mono', Consolas, monospace", false],
+  ['--app-color-font', 'var(--ref-palette-cyan60)', false],
+  ['--font-height', '0', false],
+]
+for (const [name, value, expected] of hostTokens) {
+  assert.equal(rewrites(name, value), expected, `${name}: ${value} -> expected rewrite=${expected}`)
+}
+
 console.log(
-  'client.js guards OK (%d accepted, %d rejected sample values)',
+  'client.js guards OK (%d accepted, %d rejected values, %d host tokens)',
   accepted.length,
   rejected.length,
+  hostTokens.length,
 )

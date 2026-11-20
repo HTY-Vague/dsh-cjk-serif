@@ -104,6 +104,10 @@ window.__ModuleLoader__.load({
     }
 
     // --- [font-variable filtering] pure helpers, also read by tests/variable-filter.test.mjs ---
+    // Custom properties we are willing to edit: font stacks, but never code.
+    const VAR_NAME = /(font|serif|prose)/i
+    const VAR_SKIP = /(code|mono|terminal)/i
+
     // A bare family name: letters, digits, spaces, underscores, and hyphens,
     // not starting with a digit (so `14px`, `400`, and `1.5rem` are rejected).
     const BARE_FAMILY = /^-?[A-Za-z_][A-Za-z0-9 _-]*$/u
@@ -132,10 +136,6 @@ window.__ModuleLoader__.load({
       return true
     }
     // --- [/font-variable filtering] ---
-
-    // Custom properties we are willing to edit: font stacks, but never code.
-    const VAR_NAME = /(font|serif|prose)/i
-    const VAR_SKIP = /(code|mono|terminal)/i
 
     function readEnabled() {
       try {
